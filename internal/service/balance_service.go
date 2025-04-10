@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/config"
@@ -138,5 +139,54 @@ func (s *BalanceService) GetUserBalance(ctx context.Context, userID string) (*mo
 		return nil, err
 	}
 
-	return &models.BalanceDTO{Current: user.AccruedTotal - user.WithdrawnTotal, Accrual: user.AccruedTotal}, nil
+	return &models.BalanceDTO{Current: user.AccruedTotal - float32(user.WithdrawnTotal), Accrual: user.AccruedTotal}, nil
+}
+
+func (s *BalanceService) recalculateWithdrawals(ctx context.Context, userID string) error {
+
+	withdrawals, err := s.repository.GetWithdrawalsByUserID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	var totalWithdrawn int32
+	for _, w := range withdrawals {
+		totalWithdrawn += w.Amount
+	}
+
+	return s.repository.UpdateUserWithdrawnTotel(ctx, userID, totalWithdrawn)
+
+}
+
+func (s *BalanceService) Withdraw(ctx context.Context, userID string, request *models.WithdrawalRequestDTO) error {
+
+	correct, err := common.CheckOrderNumberFormat(request.Order)
+	if err != nil || !correct {
+		s.logger.ErrorContext(ctx, "Invalid order number", "number", request.Order)
+		return common.ErrorInvalidOrderNumberFormat
+	}
+
+	// checking the balance
+	user, err := s.repository.FindUserById(ctx, userID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "Error finding user", "id", userID, "err", err.Error())
+		return err
+	}
+
+	if user.AccruedTotal-float32(user.WithdrawnTotal)-float32(request.Sum) < 0 {
+		s.logger.ErrorContext(ctx, "Insufficient balance", "id", userID)
+		return common.ErrorInsufficientBalance
+	}
+
+	// user has enough points, making withdrawal
+	w := &models.Withdrawal{UploadedAt: time.Now(), UserID: userID, Order: request.Order, Amount: request.Sum}
+
+	_, err = s.repository.AddWithdrawal(ctx, w)
+
+	if err != nil {
+		s.logger.ErrorContext(ctx, "Error saving withdrawal", "id", userID, "err", err.Error())
+		return err
+	}
+
+	return s.recalculateWithdrawals(ctx, userID)
+
 }

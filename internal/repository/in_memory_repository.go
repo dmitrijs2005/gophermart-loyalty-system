@@ -14,6 +14,7 @@ type InMemoryRepository struct {
 	users               map[string]models.User
 	userLookupByLogin   map[string]string
 	orders              map[string]models.Order
+	withdrawals         map[string]models.Withdrawal
 	orderLookupByNumber map[string]string
 	orderLookupByUserID map[string][]string
 }
@@ -25,6 +26,7 @@ func NewInMemoryRepository() (*InMemoryRepository, error) {
 		orders:              map[string]models.Order{},
 		orderLookupByNumber: map[string]string{},
 		orderLookupByUserID: map[string][]string{},
+		withdrawals:         map[string]models.Withdrawal{},
 	}, nil
 }
 
@@ -193,7 +195,7 @@ func (r *InMemoryRepository) UpdateUserAccruedTotel(ctx context.Context, userID 
 
 }
 
-func (r *InMemoryRepository) UpdateUserWithdrawnTotel(ctx context.Context, userID string, amount float32) error {
+func (r *InMemoryRepository) UpdateUserWithdrawnTotel(ctx context.Context, userID string, amount int32) error {
 
 	user, exist := r.users[userID]
 
@@ -217,4 +219,35 @@ func (r *InMemoryRepository) FindUserById(ctx context.Context, userID string) (m
 		return user, nil
 	}
 
+}
+
+func (r *InMemoryRepository) AddWithdrawal(ctx context.Context, item *models.Withdrawal) (models.Withdrawal, error) {
+	id, err := r.newUUID()
+	if err != nil {
+		return models.Withdrawal{}, err
+	}
+
+	item.ID = id
+	r.withdrawals[item.ID] = *item
+
+	return *item, nil
+}
+
+func (r *InMemoryRepository) filterWithdrawals(predicate func(models.Withdrawal) bool) []models.Withdrawal {
+	var result []models.Withdrawal
+	for _, withdrawal := range r.withdrawals {
+		if predicate(withdrawal) {
+			result = append(result, withdrawal)
+		}
+	}
+	return result
+}
+
+func (r *InMemoryRepository) GetWithdrawalsByUserID(ctx context.Context, userID string) ([]models.Withdrawal, error) {
+
+	withdrawals := r.filterWithdrawals(func(o models.Withdrawal) bool {
+		return o.UserID == userID
+	})
+
+	return withdrawals, nil
 }

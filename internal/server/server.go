@@ -53,7 +53,7 @@ func (s *HTTPServer) RegisterBalanceRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(m.NewAuthMiddleware(s.config.SecretKey))
 		r.Get("/balance", h.UserBalance)
-		// r.Get("/orders", h.GetUserOrderList)
+		r.Post("/balance/withdraw", h.Withdraw)
 	})
 
 }

@@ -42,3 +42,25 @@ func CheckForAllDigits(s string) bool {
 
 	return matched
 }
+
+func CheckOrderNumberFormat(number string) (bool, error) {
+	if number == "" {
+		return false, nil
+	}
+
+	if !CheckForAllDigits(number) {
+		return false, nil
+	}
+
+	valid, err := CheckLuhn(number)
+
+	if err != nil {
+		return false, err
+	}
+
+	if !valid {
+		return false, err
+	}
+
+	return true, nil
+}

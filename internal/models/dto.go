@@ -39,3 +39,8 @@ type AccrualStatusDTO struct {
 	Status  AccrualStatus `json:"status"`
 	Accrual float32       `json:"accrual"`
 }
+
+type WithdrawalRequestDTO struct {
+	Order string `json:"order"`
+	Sum   int32  `json:"sum"`
+}

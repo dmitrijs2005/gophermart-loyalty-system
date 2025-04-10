@@ -43,32 +43,10 @@ func newOrder(userID string, number string) (*models.Order, error) {
 	return &models.Order{Number: number, UserID: userID, UploadedAt: time.Now(), Status: models.OrderStatusNew}, nil
 }
 
-func (s *OrderService) checkOrderNumberFormat(number string) (bool, error) {
-	if number == "" {
-		return false, nil
-	}
-
-	if !common.CheckForAllDigits(number) {
-		return false, nil
-	}
-
-	valid, err := common.CheckLuhn(number)
-
-	if err != nil {
-		return false, err
-	}
-
-	if !valid {
-		return false, err
-	}
-
-	return true, nil
-}
-
 func (s *OrderService) RegisterOrderNumber(ctx context.Context, userID string, number string) OrderStatus {
 
 	// optional check
-	valid, err := s.checkOrderNumberFormat(number)
+	valid, err := common.CheckOrderNumberFormat(number)
 	if err != nil {
 		fmt.Println(1, err)
 		return OrderStatusInternalError

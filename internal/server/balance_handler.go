@@ -2,8 +2,11 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/server/middleware"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/service"
 )
@@ -63,5 +66,67 @@ func (h *BalanceHandler) UserBalance(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+}
+
+// #### **Запрос на списание средств**
+// Хендлер: `POST /api/user/balance/withdraw`
+// Хендлер доступен только авторизованному пользователю. Номер заказа представляет собой гипотетический номер нового заказа пользователя в счет оплаты которого списываются баллы.
+// Примечание: для успешного списания достаточно успешной регистрации запроса, никаких внешних систем начисления не предусмотрено и не требуется реализовывать.
+// Формат запроса:
+// ```
+// POST /api/user/balance/withdraw HTTP/1.1
+// Content-Type: application/json
+// {
+// 	"order": "2377225624",
+//     "sum": 751
+// }
+// ```
+// Здесь `order` — номер заказа, а `sum` — сумма баллов к списанию в счёт оплаты.
+// Возможные коды ответа:
+// - `200` — успешная обработка запроса;
+// - `401` — пользователь не авторизован;
+// - `402` — на счету недостаточно средств;
+// - `422` — неверный номер заказа;
+// - `500` — внутренняя ошибка сервера.
+
+func (h *BalanceHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
+
+	var req models.WithdrawalRequestDTO
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	// trying to get userid from context
+	a := ctx.Value(middleware.UserIDKey)
+	userID, ok := a.(string)
+	if !ok {
+		http.Error(w, "User not found", http.StatusInternalServerError)
+		return
+
+	}
+
+	err = h.service.Withdraw(ctx, userID, &req)
+	if err != nil {
+		if errors.Is(err, common.ErrorInsufficientBalance) {
+			http.Error(w, err.Error(), http.StatusPaymentRequired)
+			return
+		} else {
+			if errors.Is(err, common.ErrorInvalidOrderNumberFormat) {
+				http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+				return
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+
+			}
+		}
+	}
+
+	w.Write([]byte{})
 
 }

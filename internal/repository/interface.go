@@ -24,6 +24,8 @@ type Repository interface {
 	FindOrderByID(ctx context.Context, id string) (models.Order, error)
 	UpdateOrderAccrualStatus(ctx context.Context, id string, status models.OrderStatus, accrual float32) (models.Order, error)
 	UpdateUserAccruedTotel(ctx context.Context, userID string, amount float32) error
-	UpdateUserWithdrawnTotel(ctx context.Context, userID string, amount float32) error
+	UpdateUserWithdrawnTotel(ctx context.Context, userID string, amount int32) error
 	GetOrdersByUserID(ctx context.Context, userID string) ([]models.Order, error)
+	AddWithdrawal(ctx context.Context, withdrawal *models.Withdrawal) (models.Withdrawal, error)
+	GetWithdrawalsByUserID(ctx context.Context, userID string) ([]models.Withdrawal, error)
 }
