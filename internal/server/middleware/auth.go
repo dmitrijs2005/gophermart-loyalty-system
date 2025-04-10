@@ -9,6 +9,12 @@ import (
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
 )
 
+type contextKey string
+
+const (
+	UserIDKey contextKey = "userID"
+)
+
 func ExtractAuthToken(header string) (string, error) {
 	parts := strings.Split(header, " ")
 	if len(parts) != 2 {
@@ -48,7 +54,7 @@ func NewAuthMiddleware(secretKey string) func(http.Handler) http.Handler {
 				return
 			}
 
-			contextWithUser := context.WithValue(r.Context(), "UserID", userID)
+			contextWithUser := context.WithValue(r.Context(), UserIDKey, userID)
 
 			// Call the next handler
 			next.ServeHTTP(w, r.WithContext(contextWithUser))

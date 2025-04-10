@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/server/middleware"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/service"
 )
 
@@ -58,10 +59,10 @@ func (h *OrderHandler) RegisterOrder(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// trying to get userid from context
-	a := ctx.Value("UserID")
+	a := ctx.Value(middleware.UserIDKey)
 	userID, ok := a.(string)
 	if !ok {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "User not found", http.StatusInternalServerError)
 		return
 
 	}
@@ -151,7 +152,7 @@ func (h *OrderHandler) GetUserOrderList(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 
 	// trying to get userid from context
-	a := ctx.Value("UserID")
+	a := ctx.Value(middleware.UserIDKey)
 	userID, ok := a.(string)
 	if !ok {
 		http.Error(w, "sas", http.StatusInternalServerError)

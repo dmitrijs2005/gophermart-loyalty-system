@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/config"
-	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/repository"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/logging"
 	m "github.com/dmitrijs2005/gophermart-loyalty-system/internal/server/middleware"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -14,18 +14,19 @@ import (
 )
 
 type HTTPServer struct {
-	config     *config.Config
-	repository repository.Repository
+	config          *config.Config
+	logger          logging.Logger
+	serviceProvider *service.ServiceProvider
 }
 
-func NewHTTPServer(c *config.Config, r repository.Repository) (*HTTPServer, error) {
-	return &HTTPServer{config: c, repository: r}, nil
+func NewHTTPServer(c *config.Config, sp *service.ServiceProvider, logger logging.Logger) (*HTTPServer, error) {
+	return &HTTPServer{config: c, serviceProvider: sp, logger: logger}, nil
 }
 
 func (s *HTTPServer) RegisterAuthRoutes(r chi.Router) {
 
-	authService := service.NewAuthService(s.repository, s.config)
-	h := NewAuthHandler(authService)
+	service := s.serviceProvider.AuthService
+	h := NewAuthHandler(service)
 
 	r.Post("/register", h.Register)
 	r.Post("/login", h.Login)
@@ -33,7 +34,7 @@ func (s *HTTPServer) RegisterAuthRoutes(r chi.Router) {
 
 func (s *HTTPServer) RegisterOrderRoutes(r chi.Router) {
 
-	service := service.NewOrderService(s.repository)
+	service := s.serviceProvider.OrderService
 	h := NewOrderHandler(service)
 
 	r.Group(func(r chi.Router) {
@@ -46,7 +47,7 @@ func (s *HTTPServer) RegisterOrderRoutes(r chi.Router) {
 
 func (s *HTTPServer) RegisterBalanceRoutes(r chi.Router) {
 
-	service := service.NewBalanceService(s.repository)
+	service := s.serviceProvider.BalanceService
 	_ = NewBalanceHandler(service)
 
 	r.Group(func(r chi.Router) {
@@ -91,7 +92,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
 		if err := server.Shutdown(context.Background()); err != nil {
-			//s.logger.Error("HTTP server shutdown error", "err", err)
+			s.logger.ErrorContext(ctx, "Error", "err", err.Error())
 		}
 	}()
 

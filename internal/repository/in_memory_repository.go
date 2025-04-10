@@ -47,7 +47,7 @@ func (r *InMemoryRepository) RollbackTransaction(ctx context.Context) error {
 	return nil
 }
 
-func (r *InMemoryRepository) findUserIdByLogin(_ context.Context, login string) string {
+func (r *InMemoryRepository) findUserIDByLogin(_ context.Context, login string) string {
 	id, exists := r.userLookupByLogin[login]
 	if !exists {
 		return ""
@@ -56,7 +56,7 @@ func (r *InMemoryRepository) findUserIdByLogin(_ context.Context, login string) 
 }
 
 func (r *InMemoryRepository) FindUserByLogin(ctx context.Context, login string) (models.User, error) {
-	id := r.findUserIdByLogin(ctx, login)
+	id := r.findUserIDByLogin(ctx, login)
 	if id == "" {
 		return models.User{}, common.ErrorNotFound
 	}
@@ -64,12 +64,12 @@ func (r *InMemoryRepository) FindUserByLogin(ctx context.Context, login string) 
 }
 
 func (r *InMemoryRepository) AddUser(ctx context.Context, user *models.User) (models.User, error) {
-	id := r.findUserIdByLogin(ctx, user.Login)
+	id := r.findUserIDByLogin(ctx, user.Login)
 	if id != "" {
 		return r.users[id], common.ErrorLoginAlreadyExists
 	}
 
-	id, err := r.newId()
+	id, err := r.newUUID()
 	if err != nil {
 		return models.User{}, err
 	}
@@ -89,7 +89,7 @@ func (r *InMemoryRepository) FindOrderByID(ctx context.Context, id string) (mode
 	return o, nil
 }
 
-func (r *InMemoryRepository) newId() (string, error) {
+func (r *InMemoryRepository) newUUID() (string, error) {
 
 	id, err := uuid.NewRandom()
 	if err != nil {
@@ -119,7 +119,7 @@ func (r *InMemoryRepository) AddOrder(ctx context.Context, order *models.Order) 
 		return existingOrder, common.ErrorOrderAlreadyExists
 	}
 
-	id, err := r.newId()
+	id, err := r.newUUID()
 	if err != nil {
 		return models.Order{}, err
 	}
@@ -132,7 +132,7 @@ func (r *InMemoryRepository) AddOrder(ctx context.Context, order *models.Order) 
 	return *order, nil
 }
 
-func (r *InMemoryRepository) GetOrdersByUserId(ctx context.Context, userID string) ([]models.Order, error) {
+func (r *InMemoryRepository) GetOrdersByUserID(ctx context.Context, userID string) ([]models.Order, error) {
 	var res []models.Order
 	for _, id := range r.orderLookupByUserID[userID] {
 		o := r.orders[id]

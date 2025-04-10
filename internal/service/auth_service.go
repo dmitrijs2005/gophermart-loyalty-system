@@ -7,6 +7,7 @@ import (
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/auth"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/config"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/logging"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/repository"
 )
@@ -14,10 +15,11 @@ import (
 type AuthService struct {
 	repository repository.Repository
 	config     *config.Config
+	logger     logging.Logger
 }
 
-func NewAuthService(r repository.Repository, c *config.Config) *AuthService {
-	return &AuthService{repository: r, config: c}
+func NewAuthService(r repository.Repository, c *config.Config, l logging.Logger) *AuthService {
+	return &AuthService{repository: r, config: c, logger: l}
 }
 
 // possible password encryption

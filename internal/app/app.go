@@ -8,8 +8,10 @@ import (
 	"syscall"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/config"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/logging"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/repository"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/server"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/service"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/task"
 )
 
@@ -39,13 +41,14 @@ func (app *App) initSignalHandler(cancelFunc context.CancelFunc) {
 	}()
 }
 
-func (app *App) startHTTPServer(ctx context.Context, cancelFunc context.CancelFunc, wg *sync.WaitGroup, repository repository.Repository) {
+func (app *App) startHTTPServer(ctx context.Context, cancelFunc context.CancelFunc,
+	wg *sync.WaitGroup, serviceProvider *service.ServiceProvider, logger logging.Logger) {
 
 	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		server, err := server.NewHTTPServer(app.config, repository)
+		server, err := server.NewHTTPServer(app.config, serviceProvider, logger)
 		if err != nil {
 			cancelFunc()
 		}
@@ -55,13 +58,13 @@ func (app *App) startHTTPServer(ctx context.Context, cancelFunc context.CancelFu
 	}()
 }
 
-func (app *App) startCheckingTask(ctx context.Context, wg *sync.WaitGroup, repository repository.Repository) {
+func (app *App) startCheckingTask(ctx context.Context, wg *sync.WaitGroup, serviceProvider *service.ServiceProvider) {
 
 	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		task := task.NewAccrualCheckerTask(app.config, repository)
+		task := task.NewAccrualCheckerTask(app.config, serviceProvider.BalanceService)
 		task.Start(ctx)
 	}()
 }
@@ -77,10 +80,15 @@ func (app *App) Run() error {
 		return err
 	}
 
+	slogLogger := logging.NewLogger()
+	logger := logging.NewSlogAdapter(slogLogger)
+
+	serviceProvider := service.NewServiceProvider(repository, app.config, logger)
+
 	var wg sync.WaitGroup
 
-	app.startHTTPServer(ctx, cancelFunc, &wg, repository)
-	app.startCheckingTask(ctx, &wg, repository)
+	app.startHTTPServer(ctx, cancelFunc, &wg, serviceProvider, logger)
+	app.startCheckingTask(ctx, &wg, serviceProvider)
 
 	wg.Wait()
 

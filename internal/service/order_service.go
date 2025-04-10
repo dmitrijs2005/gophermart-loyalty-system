@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/config"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/logging"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/repository"
 )
@@ -23,10 +25,12 @@ const (
 
 type OrderService struct {
 	repository repository.Repository
+	config     *config.Config
+	logger     logging.Logger
 }
 
-func NewOrderService(r repository.Repository) *OrderService {
-	return &OrderService{repository: r}
+func NewOrderService(r repository.Repository, c *config.Config, l logging.Logger) *OrderService {
+	return &OrderService{repository: r, config: c, logger: l}
 }
 
 func newOrder(userID string, number string) (*models.Order, error) {
@@ -98,7 +102,7 @@ func (s *OrderService) RegisterOrderNumber(ctx context.Context, userID string, n
 
 func (s *OrderService) GetOrderList(ctx context.Context, userID string) ([]models.Order, error) {
 
-	orders, err := s.repository.GetOrdersByUserId(ctx, userID)
+	orders, err := s.repository.GetOrdersByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

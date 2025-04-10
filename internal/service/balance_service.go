@@ -1,78 +1,116 @@
 package service
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/config"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/logging"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/repository"
 )
 
-// type OrderStatus int
-
-// const (
-// 	OrderStatusSubmittedByAnotherUser OrderStatus = iota
-// 	OrderStatusInvalidNumberFormat
-// 	OrderStatusSubmittedByThisUser
-// 	OrderStatusInternalError
-// 	OrderStatusAccepted
-// )
-
 type BalanceService struct {
 	repository repository.Repository
+	config     *config.Config
+	logger     logging.Logger
 }
 
-func NewBalanceService(r repository.Repository) *BalanceService {
-	return &BalanceService{repository: r}
+func NewBalanceService(r repository.Repository, c *config.Config, l logging.Logger) *BalanceService {
+	return &BalanceService{repository: r, config: c, logger: l.With("task", "process_pending_orders")}
 }
 
-// func (s *OrderService) GetUserBalance(ctx context.Context, userID string) OrderStatus {
+func (s *BalanceService) checkOrderStatusInAccrualSystem(ctx context.Context, number string) (*models.AccrualStatusDTO, error) {
 
-// 	// optional check
-// 	valid, err := s.checkOrderNumberFormat(number)
-// 	if err != nil {
-// 		fmt.Println(1, err)
-// 		return OrderStatusInternalError
-// 	}
+	url := fmt.Sprintf("%s/api/orders/%s", s.config.AccrualSystemAddress, number)
 
-// 	if !valid {
-// 		fmt.Println(3, err)
-// 		return OrderStatusInvalidNumberFormat
-// 	}
+	// Create a new HTTP request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
 
-// 	o, err := newOrder(userID, number)
-// 	if err != nil {
-// 		fmt.Println(2, err)
-// 		return OrderStatusInternalError
-// 	}
+	// Send the request using the default HTTP client
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
 
-// 	order, err := s.repository.AddOrder(ctx, o)
-// 	if err != nil {
-// 		if errors.Is(err, common.ErrorAlreadyExists) {
-// 			if order.UserID == userID {
-// 				return OrderStatusSubmittedByThisUser
-// 			} else {
-// 				return OrderStatusSubmittedByAnotherUser
-// 			}
-// 		}
-// 	}
+	if resp.StatusCode == http.StatusNoContent {
+		return nil, common.ErrorNotFound
+	}
 
-// 	return OrderStatusAccepted
+	reply, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 
-// }
+	var o *models.AccrualStatusDTO
+	err = json.Unmarshal(reply, &o)
 
-// func (s *OrderService) GetOrderList(ctx context.Context, userID string) ([]models.Order, error) {
+	if err != nil {
+		return nil, err
+	}
 
-// 	orders, err := s.repository.GetOrderListByUserId(ctx, userID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	return o, nil
 
-// 	return orders, nil
-// }
+}
 
-// func (s *OrderService) GetOrderList(ctx context.Context, userID string) ([]models.Order, error) {
+func (s *BalanceService) processOrder(ctx context.Context, order models.Order) error {
 
-// 	orders, err := s.repository.GetOrderListByUserId(ctx, userID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	logger := s.logger.With("number", order.Number)
 
-// 	return orders, nil
-// }
+	accrual, err := s.checkOrderStatusInAccrualSystem(ctx, order.Number)
+	if err != nil {
+		return err
+	}
+
+	logger.InfoContext(ctx, "Status received", "status", accrual.Status)
+
+	var newStatus models.OrderStatus
+	var accrualAmount float32
+
+	switch accrual.Status {
+	case models.AccrualStatusProcessing:
+		newStatus = models.OrderStatusProcessing
+	case models.AccrualStatusProcessed:
+		newStatus = models.OrderStatusProcessed
+		accrualAmount = accrual.Accrual
+	case models.AccrualStatusInvalid:
+		newStatus = models.OrderStatusInvalid
+	}
+
+	logger.InfoContext(ctx, "Udating status", "status", newStatus)
+	_, err = s.repository.UpdateOrderAccrualStatus(ctx, order.ID, newStatus, accrualAmount)
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *BalanceService) ProcessPendingOrders(ctx context.Context) error {
+
+	orders, err := s.repository.GetUnprocessedOrders(ctx)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "Error selecting orders", "err", err.Error())
+		return err
+	}
+
+	for _, o := range orders {
+
+		err := s.processOrder(ctx, o)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "Error processig order", "number", o.Number, "err", err)
+		}
+	}
+
+	return nil
+
+}
