@@ -44,3 +44,9 @@ type WithdrawalRequestDTO struct {
 	Order string `json:"order"`
 	Sum   int32  `json:"sum"`
 }
+
+type WithdrawalDTO struct {
+	Order       string    `json:"order"`
+	Sum         int32     `json:"sum"`
+	ProcessedAt time.Time `json:"processed_at"`
+}

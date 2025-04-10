@@ -190,3 +190,17 @@ func (s *BalanceService) Withdraw(ctx context.Context, userID string, request *m
 	return s.recalculateWithdrawals(ctx, userID)
 
 }
+
+func (s *BalanceService) GetWithdrawals(ctx context.Context, userID string) ([]*models.WithdrawalDTO, error) {
+	withdrawals, err := s.repository.GetWithdrawalsByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	var result []*models.WithdrawalDTO
+
+	for _, w := range withdrawals {
+		result = append(result, &models.WithdrawalDTO{Order: w.Order, Sum: w.Amount, ProcessedAt: w.UploadedAt})
+	}
+
+	return result, nil
+}
