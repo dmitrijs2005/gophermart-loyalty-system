@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
@@ -31,19 +30,19 @@ func NewInMemoryRepository() (*InMemoryRepository, error) {
 
 func (r *InMemoryRepository) BeginTransaction(ctx context.Context) error {
 	r.mu.Lock()
-	fmt.Println("BEGIN TRANSACTIOB")
+	//fmt.Println("BEGIN TRANSACTIOB")
 	return nil
 }
 
 func (r *InMemoryRepository) CommitTransaction(ctx context.Context) error {
 	r.mu.Unlock()
-	fmt.Println("COMMIT TRANSACTIOB")
+	//fmt.Println("COMMIT TRANSACTIOB")
 	return nil
 }
 
 func (r *InMemoryRepository) RollbackTransaction(ctx context.Context) error {
 	r.mu.Unlock()
-	fmt.Println("ROLLBACK TRANSACTIOB")
+	//fmt.Println("ROLLBACK TRANSACTIOB")
 	return nil
 }
 
@@ -163,9 +162,6 @@ func (r *InMemoryRepository) GetUnprocessedOrders(ctx context.Context) ([]models
 func (r *InMemoryRepository) UpdateOrderAccrualStatus(ctx context.Context, orderID string,
 	status models.OrderStatus, accrual float32) (models.Order, error) {
 
-	fmt.Println(r.orders)
-	fmt.Println("updating", orderID)
-
 	o, exist := r.orders[orderID]
 
 	if !exist {
@@ -178,5 +174,47 @@ func (r *InMemoryRepository) UpdateOrderAccrualStatus(ctx context.Context, order
 	r.orders[orderID] = o
 
 	return o, nil
+
+}
+
+func (r *InMemoryRepository) UpdateUserAccruedTotel(ctx context.Context, userID string, amount float32) error {
+
+	user, exist := r.users[userID]
+
+	if !exist {
+		return common.ErrorNotFound
+	}
+
+	user.AccruedTotal = amount
+
+	r.users[userID] = user
+
+	return nil
+
+}
+
+func (r *InMemoryRepository) UpdateUserWithdrawnTotel(ctx context.Context, userID string, amount float32) error {
+
+	user, exist := r.users[userID]
+
+	if !exist {
+		return common.ErrorNotFound
+	}
+
+	user.WithdrawnTotal = amount
+
+	r.users[userID] = user
+
+	return nil
+
+}
+
+func (r *InMemoryRepository) FindUserById(ctx context.Context, userID string) (models.User, error) {
+	user, exists := r.users[userID]
+	if !exists {
+		return models.User{}, common.ErrorNotFound
+	} else {
+		return user, nil
+	}
 
 }

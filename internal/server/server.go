@@ -48,11 +48,11 @@ func (s *HTTPServer) RegisterOrderRoutes(r chi.Router) {
 func (s *HTTPServer) RegisterBalanceRoutes(r chi.Router) {
 
 	service := s.serviceProvider.BalanceService
-	_ = NewBalanceHandler(service)
+	h := NewBalanceHandler(service)
 
 	r.Group(func(r chi.Router) {
 		r.Use(m.NewAuthMiddleware(s.config.SecretKey))
-		// r.Post("/orders", h.RegisterOrder)
+		r.Get("/balance", h.UserBalance)
 		// r.Get("/orders", h.GetUserOrderList)
 	})
 

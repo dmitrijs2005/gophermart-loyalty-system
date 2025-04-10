@@ -92,7 +92,23 @@ func (s *BalanceService) processOrder(ctx context.Context, order models.Order) e
 	if err != nil {
 		return err
 	}
-	return nil
+
+	return s.recalculateAccruals(ctx, order.UserID)
+}
+
+func (s *BalanceService) recalculateAccruals(ctx context.Context, userID string) error {
+
+	orders, err := s.repository.GetOrdersByUserID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	var totalAccrued float32
+	for _, o := range orders {
+		totalAccrued += o.Accrual
+	}
+
+	return s.repository.UpdateUserAccruedTotel(ctx, userID, totalAccrued)
+
 }
 
 func (s *BalanceService) ProcessPendingOrders(ctx context.Context) error {
@@ -113,4 +129,14 @@ func (s *BalanceService) ProcessPendingOrders(ctx context.Context) error {
 
 	return nil
 
+}
+
+func (s *BalanceService) GetUserBalance(ctx context.Context, userID string) (*models.BalanceDTO, error) {
+	user, err := s.repository.FindUserById(ctx, userID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "Error finding user", "id", userID, "err", err.Error())
+		return nil, err
+	}
+
+	return &models.BalanceDTO{Current: user.AccruedTotal - user.WithdrawnTotal, Accrual: user.AccruedTotal}, nil
 }

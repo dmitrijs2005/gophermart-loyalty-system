@@ -3,10 +3,11 @@ package models
 import "time"
 
 type User struct {
-	ID       string
-	Login    string
-	Password string
-	Balance  float32
+	ID             string
+	Login          string
+	Password       string
+	AccruedTotal   float32
+	WithdrawnTotal float32
 }
 
 type OrderStatus string
