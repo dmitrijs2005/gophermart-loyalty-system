@@ -30,7 +30,7 @@ func (s *BalanceService) checkOrderStatusInAccrualSystem(ctx context.Context, nu
 	url := fmt.Sprintf("%s/api/orders/%s", s.config.AccrualSystemAddress, number)
 
 	// Create a new HTTP request
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
