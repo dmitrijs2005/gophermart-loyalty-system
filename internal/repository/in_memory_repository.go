@@ -214,7 +214,7 @@ func (r *InMemoryRepository) UpdateUserWithdrawnTotel(ctx context.Context, userI
 
 }
 
-func (r *InMemoryRepository) FindUserById(ctx context.Context, userID string) (models.User, error) {
+func (r *InMemoryRepository) FindUserByID(ctx context.Context, userID string) (models.User, error) {
 	user, exists := r.users[userID]
 	if !exists {
 		return models.User{}, common.ErrorNotFound

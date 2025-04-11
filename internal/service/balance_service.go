@@ -133,7 +133,7 @@ func (s *BalanceService) ProcessPendingOrders(ctx context.Context) error {
 }
 
 func (s *BalanceService) GetUserBalance(ctx context.Context, userID string) (*models.BalanceDTO, error) {
-	user, err := s.repository.FindUserById(ctx, userID)
+	user, err := s.repository.FindUserByID(ctx, userID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "Error finding user", "id", userID, "err", err.Error())
 		return nil, err
@@ -166,7 +166,7 @@ func (s *BalanceService) Withdraw(ctx context.Context, userID string, request *m
 	}
 
 	// checking the balance
-	user, err := s.repository.FindUserById(ctx, userID)
+	user, err := s.repository.FindUserByID(ctx, userID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "Error finding user", "id", userID, "err", err.Error())
 		return err

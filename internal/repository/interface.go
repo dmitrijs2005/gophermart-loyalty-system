@@ -16,7 +16,7 @@ type Repository interface {
 	// user related
 	AddUser(ctx context.Context, user *models.User) (models.User, error)
 	FindUserByLogin(ctx context.Context, login string) (models.User, error)
-	FindUserById(ctx context.Context, userID string) (models.User, error)
+	FindUserByID(ctx context.Context, userID string) (models.User, error)
 
 	// order and balance related
 	AddOrder(ctx context.Context, order *models.Order) (models.Order, error)
