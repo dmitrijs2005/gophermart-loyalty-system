@@ -7,6 +7,7 @@ var (
 	// common errors
 	ErrorNotFound      = errors.New("not found")
 	ErrorAlreadyExists = errors.New("already exists")
+	ErrorValidation    = errors.New("validation error")
 
 	// auth-specific errors
 	ErrorInvalidAuthheaderFormat = errors.New("invalid auth header format")
@@ -18,6 +19,7 @@ var (
 	ErrorInvalidLoginPassword    = errors.New("invalid login/password")
 
 	// order-specific errors
+	ErrorNoOrderNumberSpecified   = errors.New("no order number specified")
 	ErrorInvalidOrderNumberFormat = errors.New("invalid order number format")
 	ErrorOrderDoesNotExist        = errors.New("order does not exist")
 	ErrorOrderAlreadyExists       = errors.New("order already exists")

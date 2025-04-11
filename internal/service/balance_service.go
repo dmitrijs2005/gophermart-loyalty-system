@@ -178,7 +178,7 @@ func (s *BalanceService) Withdraw(ctx context.Context, userID string, request *m
 	}
 
 	// user has enough points, making withdrawal
-	w := &models.Withdrawal{UploadedAt: time.Now(), UserID: userID, Order: request.Order, Amount: request.Sum}
+	w := &models.Withdrawal{UploadedAt: time.Now().Truncate(time.Second), UserID: userID, Order: request.Order, Amount: request.Sum}
 
 	_, err = s.repository.AddWithdrawal(ctx, w)
 

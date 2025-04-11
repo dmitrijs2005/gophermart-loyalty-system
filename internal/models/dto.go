@@ -1,19 +1,19 @@
 package models
 
-import "time"
-
-type RegisterUserDTO struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
-}
+import (
+	"time"
+)
 
 type LoginDTO struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
+	Login    string `json:"login" validate:"required"`
+	Password string `json:"password" validate:"required"`
+}
+
+type RegisterUserDTO struct {
+	LoginDTO
 }
 
 type OrderDTO struct {
-	ID         string      `json:"id"`
 	Number     string      `json:"number"`
 	Status     OrderStatus `json:"status"`
 	Accrual    float32     `json:"accrual"`
@@ -41,8 +41,8 @@ type AccrualStatusDTO struct {
 }
 
 type WithdrawalRequestDTO struct {
-	Order string `json:"order"`
-	Sum   int32  `json:"sum"`
+	Order string `json:"order" validate:"required"`
+	Sum   int32  `json:"sum" validate:"required"`
 }
 
 type WithdrawalDTO struct {

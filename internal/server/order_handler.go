@@ -10,6 +10,13 @@ import (
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/service"
 )
 
+const (
+	NoOrderNumberSpecified      = "no order number specified"
+	OrderSubmittedByAnotherUser = "order submitted by another user"
+	OrderSubmittedByThisUser    = "order submitted by this user"
+	InternalError               = "internal error"
+)
+
 type OrderHandler struct {
 	service *service.OrderService
 }
@@ -19,25 +26,17 @@ func NewOrderHandler(s *service.OrderService) *OrderHandler {
 }
 
 // #### **Загрузка номера заказа**
-
 // Хендлер: `POST /api/user/orders`.
-
 // Хендлер доступен только аутентифицированным пользователям. Номером заказа является последовательность цифр произвольной длины.
-
 // Номер заказа может быть проверен на корректность ввода с помощью [алгоритма Луна](https://ru.wikipedia.org/wiki/Алгоритм_Луна){target="_blank"}.
-
 // Формат запроса:
-
 // ```
 // POST /api/user/orders HTTP/1.1
 // Content-Type: text/plain
 // ...
-
 // 12345678903
 // ```
-
 // Возможные коды ответа:
-
 // - `200` — номер заказа уже был загружен этим пользователем;
 // - `202` — новый номер заказа принят в обработку;
 // - `400` — неверный формат запроса;
@@ -55,6 +54,12 @@ func (h *OrderHandler) RegisterOrder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	orderNumber := string(body)
+
+	if orderNumber == "" {
+		http.Error(w, NoOrderNumberSpecified, http.StatusBadRequest)
+		return
+	}
 
 	ctx := r.Context()
 
@@ -64,20 +69,17 @@ func (h *OrderHandler) RegisterOrder(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		http.Error(w, "User not found", http.StatusInternalServerError)
 		return
-
 	}
-
-	orderNumber := string(body)
 
 	status := h.service.RegisterOrderNumber(ctx, userID, orderNumber)
 
 	switch status {
 	case service.OrderStatusSubmittedByAnotherUser:
-		http.Error(w, "order submitted by another user", http.StatusConflict)
+		http.Error(w, OrderSubmittedByAnotherUser, http.StatusConflict)
 		return
 	case service.OrderStatusSubmittedByThisUser:
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("order submitted by this user"))
+		w.Write([]byte(OrderSubmittedByThisUser))
 		return
 	case service.OrderStatusAccepted:
 		w.WriteHeader(http.StatusAccepted)
@@ -87,43 +89,32 @@ func (h *OrderHandler) RegisterOrder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid order number format", http.StatusUnprocessableEntity)
 		return
 	default:
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		http.Error(w, InternalError, http.StatusInternalServerError)
 		return
 	}
 
 }
 
 // #### **Получение списка загруженных номеров заказов**
-
 // Хендлер: `GET /api/user/orders`.
-
 // Хендлер доступен только авторизованному пользователю. Номера заказа в выдаче должны быть отсортированы по времени загрузки от самых новых к самым старым. Формат даты — RFC3339.
-
 // Доступные статусы обработки расчётов:
-
 // - `NEW` — заказ загружен в систему, но не попал в обработку;
 // - `PROCESSING` — вознаграждение за заказ рассчитывается;
 // - `INVALID` — система расчёта вознаграждений отказала в расчёте;
 // - `PROCESSED` — данные по заказу проверены и информация о расчёте успешно получена.
-
 // Формат запроса:
-
 // ```
 // GET /api/user/orders HTTP/1.1
 // Content-Length: 0
 // ```
-
 // Возможные коды ответа:
-
 // - `200` — успешная обработка запроса.
-
 //   Формат ответа:
-
 //     ```
 //     200 OK HTTP/1.1
 //     Content-Type: application/json
 //     ...
-
 //     [
 //     	{
 //             "number": "9278923470",
@@ -143,7 +134,6 @@ func (h *OrderHandler) RegisterOrder(w http.ResponseWriter, r *http.Request) {
 //         }
 //     ]
 //     ```
-
 // - `204` — нет данных для ответа.
 // - `401` — пользователь не авторизован.
 // - `500` — внутренняя ошибка сервера.
@@ -155,14 +145,20 @@ func (h *OrderHandler) GetUserOrderList(w http.ResponseWriter, r *http.Request) 
 	a := ctx.Value(middleware.UserIDKey)
 	userID, ok := a.(string)
 	if !ok {
-		http.Error(w, "sas", http.StatusInternalServerError)
+		http.Error(w, InternalError, http.StatusInternalServerError)
 		return
 
 	}
 
 	orders, err := h.service.GetOrderList(ctx, userID)
 	if err != nil {
-		http.Error(w, "error", http.StatusInternalServerError)
+		http.Error(w, InternalError, http.StatusInternalServerError)
+		return
+	}
+
+	if len(orders) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		w.Write([]byte{})
 		return
 	}
 

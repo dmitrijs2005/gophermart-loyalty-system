@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
@@ -40,26 +39,42 @@ func newOrder(userID string, number string) (*models.Order, error) {
 	if number == "" {
 		return nil, errors.New("empty order number")
 	}
-	return &models.Order{Number: number, UserID: userID, UploadedAt: time.Now(), Status: models.OrderStatusNew}, nil
+	return &models.Order{Number: number, UserID: userID, UploadedAt: time.Now().Truncate(time.Second), Status: models.OrderStatusNew}, nil
 }
+
+// #### **Загрузка номера заказа**
+// Хендлер: `POST /api/user/orders`.
+// Хендлер доступен только аутентифицированным пользователям. Номером заказа является последовательность цифр произвольной длины.
+// Номер заказа может быть проверен на корректность ввода с помощью [алгоритма Луна](https://ru.wikipedia.org/wiki/Алгоритм_Луна){target="_blank"}.
+// Формат запроса:
+// ```
+// POST /api/user/orders HTTP/1.1
+// Content-Type: text/plain
+// ...
+// 12345678903
+// ```
+// Возможные коды ответа:
+// - `200` — номер заказа уже был загружен этим пользователем;
+// - `202` — новый номер заказа принят в обработку;
+// - `400` — неверный формат запроса;
+// - `401` — пользователь не аутентифицирован;
+// - `409` — номер заказа уже был загружен другим пользователем;
+// - `422` — неверный формат номера заказа;
+// - `500` — внутренняя ошибка сервера.
 
 func (s *OrderService) RegisterOrderNumber(ctx context.Context, userID string, number string) OrderStatus {
 
 	// optional check
 	valid, err := common.CheckOrderNumberFormat(number)
 	if err != nil {
-		fmt.Println(1, err)
 		return OrderStatusInternalError
 	}
-
 	if !valid {
-		fmt.Println(3, err)
 		return OrderStatusInvalidNumberFormat
 	}
 
 	o, err := newOrder(userID, number)
 	if err != nil {
-		fmt.Println(2, err)
 		return OrderStatusInternalError
 	}
 

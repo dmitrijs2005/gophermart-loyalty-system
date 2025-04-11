@@ -9,6 +9,7 @@ import (
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/server/middleware"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/service"
+	"github.com/go-playground/validator/v10"
 )
 
 type BalanceHandler struct {
@@ -100,6 +101,13 @@ func (h *BalanceHandler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+
+	validate := validator.New()
+	err = validate.StructCtx(ctx, req)
+	if err != nil {
+		http.Error(w, common.ErrorValidation.Error(), http.StatusBadRequest)
+		return
+	}
 
 	// trying to get userid from context
 	a := ctx.Value(middleware.UserIDKey)

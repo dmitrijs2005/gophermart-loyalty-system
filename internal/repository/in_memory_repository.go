@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"sort"
 	"sync"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
@@ -10,23 +11,19 @@ import (
 )
 
 type InMemoryRepository struct {
-	mu                  sync.RWMutex
-	users               map[string]models.User
-	userLookupByLogin   map[string]string
-	orders              map[string]models.Order
-	withdrawals         map[string]models.Withdrawal
-	orderLookupByNumber map[string]string
-	orderLookupByUserID map[string][]string
+	mu                sync.RWMutex
+	users             map[string]models.User
+	userLookupByLogin map[string]string
+	orders            map[string]models.Order
+	withdrawals       map[string]models.Withdrawal
 }
 
 func NewInMemoryRepository() (*InMemoryRepository, error) {
 	return &InMemoryRepository{
-		users:               map[string]models.User{},
-		userLookupByLogin:   map[string]string{},
-		orders:              map[string]models.Order{},
-		orderLookupByNumber: map[string]string{},
-		orderLookupByUserID: map[string][]string{},
-		withdrawals:         map[string]models.Withdrawal{},
+		users:             map[string]models.User{},
+		userLookupByLogin: map[string]string{},
+		orders:            map[string]models.Order{},
+		withdrawals:       map[string]models.Withdrawal{},
 	}, nil
 }
 
@@ -101,11 +98,16 @@ func (r *InMemoryRepository) newUUID() (string, error) {
 }
 
 func (r *InMemoryRepository) findOrderByNumber(_ context.Context, number string) string {
-	id, exists := r.orderLookupByNumber[number]
-	if !exists {
+
+	orders := r.filterOrders(func(o models.Order) bool {
+		return o.Number == number
+	})
+
+	if len(orders) == 0 {
 		return ""
 	}
-	return id
+
+	return orders[0].ID
 }
 
 func (r *InMemoryRepository) AddOrder(ctx context.Context, order *models.Order) (models.Order, error) {
@@ -127,19 +129,20 @@ func (r *InMemoryRepository) AddOrder(ctx context.Context, order *models.Order) 
 
 	order.ID = id
 	r.orders[id] = *order
-	r.orderLookupByNumber[order.Number] = id
-	r.orderLookupByUserID[order.UserID] = append(r.orderLookupByUserID[order.UserID], id)
 
 	return *order, nil
 }
 
 func (r *InMemoryRepository) GetOrdersByUserID(ctx context.Context, userID string) ([]models.Order, error) {
-	var res []models.Order
-	for _, id := range r.orderLookupByUserID[userID] {
-		o := r.orders[id]
-		res = append(res, o)
-	}
-	return res, nil
+	orders := r.filterOrders(func(o models.Order) bool {
+		return o.UserID == userID
+	})
+
+	sort.Slice(orders, func(i, j int) bool {
+		return orders[i].UploadedAt.After(orders[j].UploadedAt)
+	})
+
+	return orders, nil
 }
 
 func (r *InMemoryRepository) filterOrders(predicate func(models.Order) bool) []models.Order {
@@ -247,6 +250,10 @@ func (r *InMemoryRepository) GetWithdrawalsByUserID(ctx context.Context, userID 
 
 	withdrawals := r.filterWithdrawals(func(o models.Withdrawal) bool {
 		return o.UserID == userID
+	})
+
+	sort.Slice(withdrawals, func(i, j int) bool {
+		return withdrawals[i].UploadedAt.After(withdrawals[j].UploadedAt)
 	})
 
 	return withdrawals, nil
