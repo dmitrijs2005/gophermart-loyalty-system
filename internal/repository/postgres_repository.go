@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
@@ -97,18 +98,28 @@ func (r *PostgresRepository) FindOrderByID(ctx context.Context, id string) (mode
 
 }
 
-// func (r *PostgresRepository) findOrderByNumber(_ context.Context, number string) string {
+func (r *PostgresRepository) FindOrderByNumber(ctx context.Context, number string) (models.Order, error) {
 
-// 	orders := r.filterOrders(func(o models.Order) bool {
-// 		return o.Number == number
-// 	})
+	exec := r.db
+	var order models.Order
 
-// 	if len(orders) == 0 {
-// 		return ""
-// 	}
+	s := "select id, user_id, number, uploaded_at, accrual from orders where number = $1 order by uploaded_at desc"
 
-// 	return orders[0].ID
-// }
+	_, err := common.RetryWithResult(ctx, func() (*sql.Row, error) {
+		r := exec.QueryRowContext(ctx, s, number)
+		err := r.Scan(&order.ID, &order.UserID, &order.Number, &order.UploadedAt, &order.Accrual)
+
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, common.ErrorNotFound
+			}
+			return nil, err
+		}
+
+		return r, err
+	})
+	return order, err
+}
 
 func (r *PostgresRepository) AddOrder(ctx context.Context, order *models.Order) (models.Order, error) {
 
@@ -127,7 +138,7 @@ func (r *PostgresRepository) AddOrder(ctx context.Context, order *models.Order) 
 
 func (r *PostgresRepository) GetOrdersByUserID(ctx context.Context, userID string) ([]models.Order, error) {
 
-	s := "select id, user_id, number, uploaded_at, accrual from orders where user_id = $1 order by uploaded_at desc"
+	s := "select id, user_id, number, uploaded_at, accrual, status from orders where user_id = $1 order by uploaded_at desc"
 
 	exec := r.db
 
@@ -136,28 +147,28 @@ func (r *PostgresRepository) GetOrdersByUserID(ctx context.Context, userID strin
 		return rows, err
 	})
 
+	if err != nil {
+		return nil, err
+	}
+
 	var orders = []models.Order{}
+
+	defer rows.Close()
 	for rows.Next() {
 		var order = models.Order{}
-		err := rows.Scan(&order.ID, &order.UserID, &order.Number, &order.UploadedAt, &order.Accrual)
+		err := rows.Scan(&order.ID, &order.UserID, &order.Number, &order.UploadedAt, &order.Accrual, &order.Status)
 		if err != nil {
 			return nil, err
 		}
 		orders = append(orders, order)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return orders, err
 }
-
-// func (r *PostgresRepository) filterOrders(predicate func(models.Order) bool) []models.Order {
-// 	var result []models.Order
-// 	for _, order := range r.orders {
-// 		if predicate(order) {
-// 			result = append(result, order)
-// 		}
-// 	}
-// 	return result
-// }
 
 func (r *PostgresRepository) GetUnprocessedOrders(ctx context.Context) ([]models.Order, error) {
 
@@ -171,6 +182,8 @@ func (r *PostgresRepository) GetUnprocessedOrders(ctx context.Context) ([]models
 	})
 
 	var orders = []models.Order{}
+
+	defer rows.Close()
 	for rows.Next() {
 		var order = models.Order{}
 		err := rows.Scan(&order.ID, &order.UserID, &order.Number, &order.UploadedAt, &order.Accrual)
@@ -178,6 +191,10 @@ func (r *PostgresRepository) GetUnprocessedOrders(ctx context.Context) ([]models
 			return nil, err
 		}
 		orders = append(orders, order)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return orders, err
@@ -214,7 +231,7 @@ func (r *PostgresRepository) UpdateUserAccruedTotel(ctx context.Context, userID 
 
 }
 
-func (r *PostgresRepository) UpdateUserWithdrawnTotel(ctx context.Context, userID string, amount int32) error {
+func (r *PostgresRepository) UpdateUserWithdrawnTotel(ctx context.Context, userID string, amount float32) error {
 
 	s := "update users set withdrawn_total = $1 where id = $2"
 
@@ -230,7 +247,7 @@ func (r *PostgresRepository) UpdateUserWithdrawnTotel(ctx context.Context, userI
 }
 
 func (r *PostgresRepository) FindUserByID(ctx context.Context, userID string) (models.User, error) {
-	s := "select id, login, password, accrued_total from users where id=$1"
+	s := "select id, login, password, accrued_total, withdrawn_total from users where id=$1"
 
 	exec := r.db
 
@@ -238,7 +255,7 @@ func (r *PostgresRepository) FindUserByID(ctx context.Context, userID string) (m
 
 	_, err := common.RetryWithResult(ctx, func() (*sql.Row, error) {
 		r := exec.QueryRowContext(ctx, s, userID)
-		err := r.Scan(&user.ID, &user.Login, &user.Password, &user.AccruedTotal)
+		err := r.Scan(&user.ID, &user.Login, &user.Password, &user.AccruedTotal, &user.WithdrawnTotal)
 		return r, err
 	})
 
@@ -261,16 +278,6 @@ func (r *PostgresRepository) AddWithdrawal(ctx context.Context, item *models.Wit
 
 }
 
-// func (r *PostgresRepository) filterWithdrawals(predicate func(models.Withdrawal) bool) []models.Withdrawal {
-// 	var result []models.Withdrawal
-// 	for _, withdrawal := range r.withdrawals {
-// 		if predicate(withdrawal) {
-// 			result = append(result, withdrawal)
-// 		}
-// 	}
-// 	return result
-// }
-
 func (r *PostgresRepository) GetWithdrawalsByUserID(ctx context.Context, userID string) ([]models.Withdrawal, error) {
 
 	s := "select id, user_id, \"order\", uploaded_at, amount from withdrawals where user_id = $1 order by uploaded_at desc"
@@ -283,6 +290,8 @@ func (r *PostgresRepository) GetWithdrawalsByUserID(ctx context.Context, userID 
 	})
 
 	var withdrawals = []models.Withdrawal{}
+
+	defer rows.Close()
 	for rows.Next() {
 		var withdrawal = models.Withdrawal{}
 		err := rows.Scan(&withdrawal.ID, &withdrawal.UserID, &withdrawal.Order, &withdrawal.UploadedAt, &withdrawal.Amount)
@@ -290,6 +299,10 @@ func (r *PostgresRepository) GetWithdrawalsByUserID(ctx context.Context, userID 
 			return nil, err
 		}
 		withdrawals = append(withdrawals, withdrawal)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return withdrawals, err

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -101,6 +102,7 @@ func (s *BalanceService) recalculateAccruals(ctx context.Context, userID string)
 
 	orders, err := s.repository.GetOrdersByUserID(ctx, userID)
 	if err != nil {
+		s.logger.ErrorContext(ctx, err.Error())
 		return err
 	}
 	var totalAccrued float32
@@ -108,7 +110,7 @@ func (s *BalanceService) recalculateAccruals(ctx context.Context, userID string)
 		totalAccrued += o.Accrual
 	}
 
-	fmt.Println(222, userID, totalAccrued)
+	s.logger.With("user_id", userID).InfoContext(ctx, "Updating accrued total", "amount", totalAccrued)
 
 	return s.repository.UpdateUserAccruedTotel(ctx, userID, totalAccrued)
 
@@ -126,7 +128,12 @@ func (s *BalanceService) ProcessPendingOrders(ctx context.Context) error {
 
 		err := s.processOrder(ctx, o)
 		if err != nil {
-			s.logger.ErrorContext(ctx, "Error processig order", "number", o.Number, "err", err)
+
+			if errors.Is(err, common.ErrorNotFound) {
+				s.logger.InfoContext(ctx, "Order not registered in accrual system yet", "number", o.Number)
+			} else {
+				s.logger.ErrorContext(ctx, "Error processig order", "number", o.Number, "err", err)
+			}
 		}
 	}
 
@@ -141,7 +148,8 @@ func (s *BalanceService) GetUserBalance(ctx context.Context, userID string) (*mo
 		return nil, err
 	}
 
-	return &models.BalanceDTO{Current: user.AccruedTotal - float32(user.WithdrawnTotal), Accrual: user.AccruedTotal}, nil
+	// - float32(user.WithdrawnTotal)
+	return &models.BalanceDTO{Current: user.AccruedTotal - user.WithdrawnTotal, Withdrawn: user.WithdrawnTotal}, nil
 }
 
 func (s *BalanceService) recalculateWithdrawals(ctx context.Context, userID string) error {
@@ -150,10 +158,12 @@ func (s *BalanceService) recalculateWithdrawals(ctx context.Context, userID stri
 	if err != nil {
 		return err
 	}
-	var totalWithdrawn int32
+	var totalWithdrawn float32
 	for _, w := range withdrawals {
 		totalWithdrawn += w.Amount
 	}
+
+	s.logger.With("user_id", userID).InfoContext(ctx, "Updating withdrawn total", "amount", totalWithdrawn)
 
 	return s.repository.UpdateUserWithdrawnTotel(ctx, userID, totalWithdrawn)
 
@@ -174,7 +184,7 @@ func (s *BalanceService) Withdraw(ctx context.Context, userID string, request *m
 		return err
 	}
 
-	if user.AccruedTotal-float32(user.WithdrawnTotal)-float32(request.Sum) < 0 {
+	if user.AccruedTotal-user.WithdrawnTotal-request.Sum < 0 {
 		s.logger.ErrorContext(ctx, "Insufficient balance", "id", userID)
 		return common.ErrorInsufficientBalance
 	}
@@ -188,6 +198,8 @@ func (s *BalanceService) Withdraw(ctx context.Context, userID string, request *m
 		s.logger.ErrorContext(ctx, "Error saving withdrawal", "id", userID, "err", err.Error())
 		return err
 	}
+
+	s.logger.With("user_id", userID).Info("Saved withdrawal", "amount", request.Sum)
 
 	return s.recalculateWithdrawals(ctx, userID)
 

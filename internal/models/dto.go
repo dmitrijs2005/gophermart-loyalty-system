@@ -21,8 +21,8 @@ type OrderDTO struct {
 }
 
 type BalanceDTO struct {
-	Current float32 `json:"current"`
-	Accrual float32 `json:"accrual"`
+	Current   float32 `json:"current"`
+	Withdrawn float32 `json:"withdrawn"`
 }
 
 type AccrualStatus string
@@ -41,12 +41,12 @@ type AccrualStatusDTO struct {
 }
 
 type WithdrawalRequestDTO struct {
-	Order string `json:"order" validate:"required"`
-	Sum   int32  `json:"sum" validate:"required"`
+	Order string  `json:"order" validate:"required"`
+	Sum   float32 `json:"sum" validate:"required"`
 }
 
 type WithdrawalDTO struct {
 	Order       string    `json:"order"`
-	Sum         int32     `json:"sum"`
+	Sum         float32   `json:"sum"`
 	ProcessedAt time.Time `json:"processed_at"`
 }

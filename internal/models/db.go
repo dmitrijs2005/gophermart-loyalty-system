@@ -7,7 +7,7 @@ type User struct {
 	Login          string
 	Password       string
 	AccruedTotal   float32
-	WithdrawnTotal int32
+	WithdrawnTotal float32
 }
 
 type OrderStatus string
@@ -33,5 +33,5 @@ type Withdrawal struct {
 	UserID     string
 	UploadedAt time.Time
 	Order      string
-	Amount     int32
+	Amount     float32
 }

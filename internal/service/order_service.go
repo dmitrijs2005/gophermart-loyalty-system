@@ -72,20 +72,27 @@ func (s *OrderService) RegisterOrderNumber(ctx context.Context, userID string, n
 		return OrderStatusInvalidNumberFormat
 	}
 
+	existingOrder, err := s.repository.FindOrderByNumber(ctx, number)
+	if err != nil {
+		if !errors.Is(err, common.ErrorNotFound) {
+			return OrderStatusInternalError
+		}
+	} else {
+		if existingOrder.UserID == userID {
+			return OrderStatusSubmittedByThisUser
+		} else {
+			return OrderStatusSubmittedByAnotherUser
+		}
+	}
+
 	o, err := newOrder(userID, number)
 	if err != nil {
 		return OrderStatusInternalError
 	}
 
-	order, err := s.repository.AddOrder(ctx, o)
+	_, err = s.repository.AddOrder(ctx, o)
 	if err != nil {
-		if errors.Is(err, common.ErrorAlreadyExists) {
-			if order.UserID == userID {
-				return OrderStatusSubmittedByThisUser
-			} else {
-				return OrderStatusSubmittedByAnotherUser
-			}
-		}
+		return OrderStatusInternalError
 	}
 
 	return OrderStatusAccepted
@@ -96,6 +103,7 @@ func (s *OrderService) GetOrderList(ctx context.Context, userID string) ([]model
 
 	orders, err := s.repository.GetOrdersByUserID(ctx, userID)
 	if err != nil {
+		s.logger.ErrorContext(ctx, err.Error())
 		return nil, err
 	}
 

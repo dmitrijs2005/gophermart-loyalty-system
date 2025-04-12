@@ -97,30 +97,20 @@ func (r *InMemoryRepository) newUUID() (string, error) {
 	return id.String(), nil
 }
 
-func (r *InMemoryRepository) findOrderByNumber(_ context.Context, number string) string {
+func (r *InMemoryRepository) FindOrderByNumber(_ context.Context, number string) (models.Order, error) {
 
 	orders := r.filterOrders(func(o models.Order) bool {
 		return o.Number == number
 	})
 
 	if len(orders) == 0 {
-		return ""
+		return models.Order{}, common.ErrorNotFound
 	}
 
-	return orders[0].ID
+	return orders[0], nil
 }
 
 func (r *InMemoryRepository) AddOrder(ctx context.Context, order *models.Order) (models.Order, error) {
-
-	id := r.findOrderByNumber(ctx, order.Number)
-	if id != "" {
-		return r.orders[id], common.ErrorAlreadyExists
-	}
-
-	existingOrder, exists := r.orders[order.Number]
-	if exists {
-		return existingOrder, common.ErrorOrderAlreadyExists
-	}
 
 	id, err := r.newUUID()
 	if err != nil {
@@ -198,7 +188,7 @@ func (r *InMemoryRepository) UpdateUserAccruedTotel(ctx context.Context, userID 
 
 }
 
-func (r *InMemoryRepository) UpdateUserWithdrawnTotel(ctx context.Context, userID string, amount int32) error {
+func (r *InMemoryRepository) UpdateUserWithdrawnTotel(ctx context.Context, userID string, amount float32) error {
 
 	user, exist := r.users[userID]
 
