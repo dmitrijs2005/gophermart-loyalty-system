@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
@@ -41,8 +42,34 @@ func (app *App) initSignalHandler(cancelFunc context.CancelFunc) {
 	}()
 }
 
+func (app *App) initRepository(ctx context.Context) (repository.Repository, error) {
+
+	var s repository.Repository
+	var err error
+
+	if app.config.DatabaseURI == "" {
+
+		s, err = repository.NewInMemoryRepository()
+
+	} else {
+
+		s, err = repository.NewPostgresRepository(ctx, app.config.DatabaseURI)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
+
+}
+
 func (app *App) startHTTPServer(ctx context.Context, cancelFunc context.CancelFunc,
-	wg *sync.WaitGroup, serviceProvider *service.ServiceProvider, logger logging.Logger) {
+	wg *sync.WaitGroup, serviceProvider *service.ServiceProvider, logger *slog.Logger) {
 
 	wg.Add(1)
 
@@ -75,13 +102,12 @@ func (app *App) Run() error {
 
 	app.initSignalHandler(cancelFunc)
 
-	repository, err := repository.NewInMemoryRepository()
+	repository, err := app.initRepository(ctx)
 	if err != nil {
 		return err
 	}
 
-	slogLogger := logging.NewLogger()
-	logger := logging.NewSlogAdapter(slogLogger)
+	logger := logging.NewLogger()
 
 	serviceProvider := service.NewServiceProvider(repository, app.config, logger)
 

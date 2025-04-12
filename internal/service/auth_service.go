@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/auth"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/config"
-	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/logging"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/repository"
 )
@@ -15,10 +15,10 @@ import (
 type AuthService struct {
 	repository repository.Repository
 	config     *config.Config
-	logger     logging.Logger
+	logger     *slog.Logger
 }
 
-func NewAuthService(r repository.Repository, c *config.Config, l logging.Logger) *AuthService {
+func NewAuthService(r repository.Repository, c *config.Config, l *slog.Logger) *AuthService {
 	return &AuthService{repository: r, config: c, logger: l}
 }
 
@@ -65,14 +65,6 @@ func (s *AuthService) Register(ctx context.Context, login string, password strin
 		return "", common.ErrorInvalidPasswordFormat
 	}
 
-	// existingLogin, err := s.repository.FindUserByLogin(ctx, login)
-	// if err != nil {
-	// 	return err
-	// }
-	// if existingLogin != nil {
-	// 	return common.ErrorLoginAlreadyExists
-	// }
-
 	//ok, adding user
 	encryptedPassword, err := s.encryptPassword(password)
 	if err != nil {
@@ -100,7 +92,7 @@ func (s *AuthService) Register(ctx context.Context, login string, password strin
 		}
 	}()
 
-	_, err = s.repository.AddUser(ctx, u)
+	user, err := s.repository.AddUser(ctx, u)
 	if err != nil {
 		return "", err
 	}
@@ -110,7 +102,7 @@ func (s *AuthService) Register(ctx context.Context, login string, password strin
 	// 	return err
 	// }
 
-	t, err := auth.GenerateToken(u.ID, s.config.SecretKey, &s.config.TokenValidityDuration)
+	t, err := auth.GenerateToken(user.ID, s.config.SecretKey, &s.config.TokenValidityDuration)
 	if err != nil {
 		return "", err
 	}

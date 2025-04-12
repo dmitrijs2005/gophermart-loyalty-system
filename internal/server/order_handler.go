@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
@@ -19,10 +20,11 @@ const (
 
 type OrderHandler struct {
 	service *service.OrderService
+	logger  *slog.Logger
 }
 
-func NewOrderHandler(s *service.OrderService) *OrderHandler {
-	return &OrderHandler{service: s}
+func NewOrderHandler(s *service.OrderService, l *slog.Logger) *OrderHandler {
+	return &OrderHandler{service: s, logger: l}
 }
 
 // #### **Загрузка номера заказа**
@@ -152,6 +154,7 @@ func (h *OrderHandler) GetUserOrderList(w http.ResponseWriter, r *http.Request) 
 
 	orders, err := h.service.GetOrderList(ctx, userID)
 	if err != nil {
+		h.logger.ErrorContext(ctx, err.Error())
 		http.Error(w, InternalError, http.StatusInternalServerError)
 		return
 	}

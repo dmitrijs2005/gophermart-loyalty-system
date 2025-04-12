@@ -1,8 +1,9 @@
 package service
 
 import (
+	"log/slog"
+
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/config"
-	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/logging"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/repository"
 )
 
@@ -12,7 +13,7 @@ type ServiceProvider struct {
 	BalanceService *BalanceService
 }
 
-func NewServiceProvider(repository repository.Repository, config *config.Config, logger logging.Logger) *ServiceProvider {
+func NewServiceProvider(repository repository.Repository, config *config.Config, logger *slog.Logger) *ServiceProvider {
 
 	authService := NewAuthService(repository, config, logger)
 	orderService := NewOrderService(repository, config, logger)

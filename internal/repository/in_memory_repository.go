@@ -165,12 +165,12 @@ func (r *InMemoryRepository) GetUnprocessedOrders(ctx context.Context) ([]models
 }
 
 func (r *InMemoryRepository) UpdateOrderAccrualStatus(ctx context.Context, orderID string,
-	status models.OrderStatus, accrual float32) (models.Order, error) {
+	status models.OrderStatus, accrual float32) error {
 
 	o, exist := r.orders[orderID]
 
 	if !exist {
-		return models.Order{}, common.ErrorNotFound
+		return common.ErrorNotFound
 	}
 
 	o.Status = status
@@ -178,7 +178,7 @@ func (r *InMemoryRepository) UpdateOrderAccrualStatus(ctx context.Context, order
 
 	r.orders[orderID] = o
 
-	return o, nil
+	return nil
 
 }
 
@@ -224,16 +224,16 @@ func (r *InMemoryRepository) FindUserByID(ctx context.Context, userID string) (m
 
 }
 
-func (r *InMemoryRepository) AddWithdrawal(ctx context.Context, item *models.Withdrawal) (models.Withdrawal, error) {
+func (r *InMemoryRepository) AddWithdrawal(ctx context.Context, item *models.Withdrawal) error {
 	id, err := r.newUUID()
 	if err != nil {
-		return models.Withdrawal{}, err
+		return err
 	}
 
 	item.ID = id
 	r.withdrawals[item.ID] = *item
 
-	return *item, nil
+	return nil
 }
 
 func (r *InMemoryRepository) filterWithdrawals(predicate func(models.Withdrawal) bool) []models.Withdrawal {

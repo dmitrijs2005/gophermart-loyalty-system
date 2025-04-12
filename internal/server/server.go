@@ -3,10 +3,10 @@ package server
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/config"
-	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/logging"
 	m "github.com/dmitrijs2005/gophermart-loyalty-system/internal/server/middleware"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -15,11 +15,11 @@ import (
 
 type HTTPServer struct {
 	config          *config.Config
-	logger          logging.Logger
+	logger          *slog.Logger
 	serviceProvider *service.ServiceProvider
 }
 
-func NewHTTPServer(c *config.Config, sp *service.ServiceProvider, logger logging.Logger) (*HTTPServer, error) {
+func NewHTTPServer(c *config.Config, sp *service.ServiceProvider, logger *slog.Logger) (*HTTPServer, error) {
 	return &HTTPServer{config: c, serviceProvider: sp, logger: logger}, nil
 }
 
@@ -35,7 +35,7 @@ func (s *HTTPServer) RegisterAuthRoutes(r chi.Router) {
 func (s *HTTPServer) RegisterOrderRoutes(r chi.Router) {
 
 	service := s.serviceProvider.OrderService
-	h := NewOrderHandler(service)
+	h := NewOrderHandler(service, s.logger)
 
 	r.Group(func(r chi.Router) {
 		r.Use(m.NewAuthMiddleware(s.config.SecretKey))

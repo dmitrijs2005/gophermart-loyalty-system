@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/config"
-	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/logging"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/repository"
 )
@@ -18,10 +18,10 @@ import (
 type BalanceService struct {
 	repository repository.Repository
 	config     *config.Config
-	logger     logging.Logger
+	logger     *slog.Logger
 }
 
-func NewBalanceService(r repository.Repository, c *config.Config, l logging.Logger) *BalanceService {
+func NewBalanceService(r repository.Repository, c *config.Config, l *slog.Logger) *BalanceService {
 	return &BalanceService{repository: r, config: c, logger: l.With("task", "process_pending_orders")}
 }
 
@@ -88,7 +88,7 @@ func (s *BalanceService) processOrder(ctx context.Context, order models.Order) e
 	}
 
 	logger.InfoContext(ctx, "Udating status", "status", newStatus)
-	_, err = s.repository.UpdateOrderAccrualStatus(ctx, order.ID, newStatus, accrualAmount)
+	err = s.repository.UpdateOrderAccrualStatus(ctx, order.ID, newStatus, accrualAmount)
 
 	if err != nil {
 		return err
@@ -107,6 +107,8 @@ func (s *BalanceService) recalculateAccruals(ctx context.Context, userID string)
 	for _, o := range orders {
 		totalAccrued += o.Accrual
 	}
+
+	fmt.Println(222, userID, totalAccrued)
 
 	return s.repository.UpdateUserAccruedTotel(ctx, userID, totalAccrued)
 
@@ -180,7 +182,7 @@ func (s *BalanceService) Withdraw(ctx context.Context, userID string, request *m
 	// user has enough points, making withdrawal
 	w := &models.Withdrawal{UploadedAt: time.Now().Truncate(time.Second), UserID: userID, Order: request.Order, Amount: request.Sum}
 
-	_, err = s.repository.AddWithdrawal(ctx, w)
+	err = s.repository.AddWithdrawal(ctx, w)
 
 	if err != nil {
 		s.logger.ErrorContext(ctx, "Error saving withdrawal", "id", userID, "err", err.Error())
