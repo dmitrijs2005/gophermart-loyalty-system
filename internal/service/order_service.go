@@ -23,6 +23,7 @@ const (
 )
 
 type OrderService struct {
+	BaseService
 	repository repository.Repository
 	config     *config.Config
 	logger     *slog.Logger
@@ -63,6 +64,13 @@ func newOrder(userID string, number string) (*models.Order, error) {
 // - `500` — внутренняя ошибка сервера.
 
 func (s *OrderService) RegisterOrderNumber(ctx context.Context, userID string, number string) OrderStatus {
+
+	tx, err := s.repository.UnitOfWork().Begin(ctx)
+	if err != nil {
+		return OrderStatusInternalError
+	}
+
+	defer s.EndTransaction(tx, &err)
 
 	valid, err := common.CheckOrderNumberFormat(number)
 	if err != nil {

@@ -17,6 +17,7 @@ import (
 )
 
 type BalanceService struct {
+	BaseService
 	repository repository.Repository
 	config     *config.Config
 	logger     *slog.Logger
@@ -89,6 +90,13 @@ func (s *BalanceService) processOrder(ctx context.Context, order models.Order) e
 	}
 
 	logger.InfoContext(ctx, "Udating status", "status", newStatus)
+
+	tx, err := s.repository.UnitOfWork().Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer s.EndTransaction(tx, &err)
+
 	err = s.repository.UpdateOrderAccrualStatus(ctx, order.ID, newStatus, accrualAmount)
 
 	if err != nil {
@@ -170,6 +178,12 @@ func (s *BalanceService) recalculateWithdrawals(ctx context.Context, userID stri
 }
 
 func (s *BalanceService) Withdraw(ctx context.Context, userID string, request *models.WithdrawalRequestDTO) error {
+
+	tx, err := s.repository.UnitOfWork().Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer s.EndTransaction(tx, &err)
 
 	correct, err := common.CheckOrderNumberFormat(request.Order)
 	if err != nil || !correct {

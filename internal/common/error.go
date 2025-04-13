@@ -26,4 +26,8 @@ var (
 
 	// balance-specific errors
 	ErrorInsufficientBalance = errors.New("insufficient balance")
+
+	// in-memory repository specific errors
+	ErrorAlreadyInTranscation = errors.New("already in transaction")
+	ErrorNotInTranscation     = errors.New("not in transaction")
 )

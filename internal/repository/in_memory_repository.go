@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 
@@ -11,46 +12,119 @@ import (
 )
 
 type InMemoryRepository struct {
-	mu                sync.RWMutex
-	users             map[string]models.User
-	userLookupByLogin map[string]string
-	orders            map[string]models.Order
-	withdrawals       map[string]models.Withdrawal
+	mu sync.RWMutex
+
+	inTransaction bool
+
+	users       map[string]models.User
+	orders      map[string]models.Order
+	withdrawals map[string]models.Withdrawal
+
+	userSnapshot       map[string]models.User
+	orderSnapshot      map[string]models.Order
+	withdrawalSnapshot map[string]models.Withdrawal
 }
 
 func NewInMemoryRepository() (*InMemoryRepository, error) {
 	return &InMemoryRepository{
-		users:             map[string]models.User{},
-		userLookupByLogin: map[string]string{},
-		orders:            map[string]models.Order{},
-		withdrawals:       map[string]models.Withdrawal{},
+		users:       map[string]models.User{},
+		orders:      map[string]models.Order{},
+		withdrawals: map[string]models.Withdrawal{},
 	}, nil
 }
 
-func (r *InMemoryRepository) BeginTransaction(ctx context.Context) error {
+func (r *InMemoryRepository) filterWithdrawals(predicate func(models.Withdrawal) bool) []models.Withdrawal {
+	var result []models.Withdrawal
+	for _, withdrawal := range r.withdrawals {
+		if predicate(withdrawal) {
+			result = append(result, withdrawal)
+		}
+	}
+	return result
+}
+func (r *InMemoryRepository) filterUsers(predicate func(models.User) bool) []models.User {
+	var result []models.User
+	for _, user := range r.users {
+		if predicate(user) {
+			result = append(result, user)
+		}
+	}
+	return result
+}
+func (r *InMemoryRepository) filterOrders(predicate func(models.Order) bool) []models.Order {
+	var result []models.Order
+	for _, order := range r.orders {
+		if predicate(order) {
+			result = append(result, order)
+		}
+	}
+	return result
+}
+
+func (r *InMemoryRepository) UnitOfWork() UnitOfWork {
+	fmt.Println("in memory uow")
+	return &InMemoryUnitOfWork{repository: r}
+}
+
+func (r *InMemoryRepository) BeginTransaction() error {
+
 	r.mu.Lock()
-	//fmt.Println("BEGIN TRANSACTIOB")
+	defer r.mu.Unlock()
+
+	if r.inTransaction {
+		return common.ErrorAlreadyInTranscation
+	}
+
+	// creating copies
+	r.userSnapshot = r.users
+	r.orderSnapshot = r.orders
+	r.withdrawalSnapshot = r.withdrawals
+
+	r.inTransaction = true
+
 	return nil
 }
 
-func (r *InMemoryRepository) CommitTransaction(ctx context.Context) error {
-	r.mu.Unlock()
-	//fmt.Println("COMMIT TRANSACTIOB")
+func (r *InMemoryRepository) Commit() error {
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if !r.inTransaction {
+		return common.ErrorNotInTranscation
+	}
+
+	r.inTransaction = false
 	return nil
 }
 
-func (r *InMemoryRepository) RollbackTransaction(ctx context.Context) error {
-	r.mu.Unlock()
-	//fmt.Println("ROLLBACK TRANSACTIOB")
+func (r *InMemoryRepository) Rollback() error {
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if !r.inTransaction {
+		return common.ErrorNotInTranscation
+	}
+
+	r.users = r.userSnapshot
+	r.orders = r.orderSnapshot
+	r.withdrawals = r.withdrawalSnapshot
+
+	r.inTransaction = false
 	return nil
 }
 
 func (r *InMemoryRepository) findUserIDByLogin(_ context.Context, login string) string {
-	id, exists := r.userLookupByLogin[login]
-	if !exists {
+	users := r.filterUsers(func(o models.User) bool {
+		return o.Login == login
+	})
+
+	if len(users) == 0 {
 		return ""
 	}
-	return id
+
+	return users[0].ID
 }
 
 func (r *InMemoryRepository) FindUserByLogin(ctx context.Context, login string) (models.User, error) {
@@ -74,7 +148,6 @@ func (r *InMemoryRepository) AddUser(ctx context.Context, user *models.User) (mo
 
 	user.ID = id
 	r.users[user.ID] = *user
-	r.userLookupByLogin[user.Login] = user.ID
 
 	return *user, nil
 }
@@ -133,16 +206,6 @@ func (r *InMemoryRepository) GetOrdersByUserID(ctx context.Context, userID strin
 	})
 
 	return orders, nil
-}
-
-func (r *InMemoryRepository) filterOrders(predicate func(models.Order) bool) []models.Order {
-	var result []models.Order
-	for _, order := range r.orders {
-		if predicate(order) {
-			result = append(result, order)
-		}
-	}
-	return result
 }
 
 func (r *InMemoryRepository) GetUnprocessedOrders(ctx context.Context) ([]models.Order, error) {
@@ -224,16 +287,6 @@ func (r *InMemoryRepository) AddWithdrawal(ctx context.Context, item *models.Wit
 	r.withdrawals[item.ID] = *item
 
 	return nil
-}
-
-func (r *InMemoryRepository) filterWithdrawals(predicate func(models.Withdrawal) bool) []models.Withdrawal {
-	var result []models.Withdrawal
-	for _, withdrawal := range r.withdrawals {
-		if predicate(withdrawal) {
-			result = append(result, withdrawal)
-		}
-	}
-	return result
 }
 
 func (r *InMemoryRepository) GetWithdrawalsByUserID(ctx context.Context, userID string) ([]models.Withdrawal, error) {

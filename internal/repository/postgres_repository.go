@@ -21,7 +21,8 @@ func NewPostgresRepository(ctx context.Context, dsn string) (*PostgresRepository
 		return nil, err
 	}
 
-	goose.SetBaseFS(nil) // default is os.DirFS(".")
+	// default is os.DirFS(".")
+	goose.SetBaseFS(nil)
 
 	if err := goose.UpContext(ctx, db, "./migrations"); err != nil {
 		return nil, err
@@ -30,31 +31,9 @@ func NewPostgresRepository(ctx context.Context, dsn string) (*PostgresRepository
 	return &PostgresRepository{db}, nil
 }
 
-func (r *PostgresRepository) BeginTransaction(ctx context.Context) error {
-	//r.mu.Lock()
-	//fmt.Println("BEGIN TRANSACTIOB")
-	return nil
+func (r *PostgresRepository) UnitOfWork() UnitOfWork {
+	return &PgUnitOfWork{r.db}
 }
-
-func (r *PostgresRepository) CommitTransaction(ctx context.Context) error {
-	//r.mu.Unlock()
-	//fmt.Println("COMMIT TRANSACTIOB")
-	return nil
-}
-
-func (r *PostgresRepository) RollbackTransaction(ctx context.Context) error {
-	//r.mu.Unlock()
-	//fmt.Println("ROLLBACK TRANSACTIOB")
-	return nil
-}
-
-// func (r *PostgresRepository) findUserIDByLogin(_ context.Context, login string) string {
-// 	id, exists := r.userLookupByLogin[login]
-// 	if !exists {
-// 		return ""
-// 	}
-// 	return id
-// }
 
 func (r *PostgresRepository) FindUserByLogin(ctx context.Context, login string) (models.User, error) {
 

@@ -13,6 +13,7 @@ import (
 )
 
 type AuthService struct {
+	BaseService
 	repository repository.Repository
 	config     *config.Config
 	logger     *slog.Logger
@@ -76,31 +77,16 @@ func (s *AuthService) Register(ctx context.Context, login string, password strin
 		return "", err
 	}
 
-	err = s.repository.BeginTransaction(ctx)
+	tx, err := s.repository.UnitOfWork().Begin(ctx)
 	if err != nil {
 		return "", err
 	}
-
-	defer func() {
-		if p := recover(); p != nil {
-			s.repository.RollbackTransaction(ctx)
-			panic(p)
-		} else if err != nil {
-			s.repository.RollbackTransaction(ctx)
-		} else {
-			err = s.repository.CommitTransaction(ctx)
-		}
-	}()
+	defer s.EndTransaction(tx, &err)
 
 	user, err := s.repository.AddUser(ctx, u)
 	if err != nil {
 		return "", err
 	}
-
-	// err = s.repository.CommitTransaction(ctx)
-	// if err != nil {
-	// 	return err
-	// }
 
 	t, err := auth.GenerateToken(user.ID, s.config.SecretKey, &s.config.TokenValidityDuration)
 	if err != nil {

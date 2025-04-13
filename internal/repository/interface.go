@@ -9,9 +9,8 @@ import (
 type Repository interface {
 
 	// transaction related
-	BeginTransaction(ctx context.Context) error
-	CommitTransaction(ctx context.Context) error
-	RollbackTransaction(ctx context.Context) error
+	//BeginTransaction(ctx context.Context) error
+	UnitOfWork() UnitOfWork
 
 	// user related
 	AddUser(ctx context.Context, user *models.User) (models.User, error)
@@ -30,4 +29,13 @@ type Repository interface {
 	GetOrdersByUserID(ctx context.Context, userID string) ([]models.Order, error)
 	AddWithdrawal(ctx context.Context, withdrawal *models.Withdrawal) error
 	GetWithdrawalsByUserID(ctx context.Context, userID string) ([]models.Withdrawal, error)
+}
+
+type UnitOfWorkTx interface {
+	Commit() error
+	Rollback() error
+}
+
+type UnitOfWork interface {
+	Begin(ctx context.Context) (UnitOfWorkTx, error)
 }
