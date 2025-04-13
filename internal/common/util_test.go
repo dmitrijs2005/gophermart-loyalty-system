@@ -63,3 +63,35 @@ func TestCheckForAllDigits(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckOrderNumberFormat(t *testing.T) {
+	type args struct {
+		number string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{"Ok1", args{"4561261212345467"}, true, false},
+		{"Ok2", args{"374245455400126"}, true, false},
+		{"Letters in number", args{"abc123"}, false, false},
+		{"Wrong Luhn check", args{"123456123456"}, false, false},
+	}
+
+	t.Parallel()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := CheckOrderNumberFormat(tt.args.number)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CheckOrderNumberFormat() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("CheckOrderNumberFormat() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
