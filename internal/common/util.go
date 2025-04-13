@@ -144,3 +144,13 @@ func RetryWithResult[T any](ctx context.Context, request func() (T, error)) (T, 
 
 	return result, err
 }
+
+func FilterMap[T any](m map[string]T, predicate func(T) bool) []T {
+	var result []T
+	for _, item := range m {
+		if predicate(item) {
+			result = append(result, item)
+		}
+	}
+	return result
+}

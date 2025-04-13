@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"sync"
 
@@ -33,36 +32,7 @@ func NewInMemoryRepository() (*InMemoryRepository, error) {
 	}, nil
 }
 
-func (r *InMemoryRepository) filterWithdrawals(predicate func(models.Withdrawal) bool) []models.Withdrawal {
-	var result []models.Withdrawal
-	for _, withdrawal := range r.withdrawals {
-		if predicate(withdrawal) {
-			result = append(result, withdrawal)
-		}
-	}
-	return result
-}
-func (r *InMemoryRepository) filterUsers(predicate func(models.User) bool) []models.User {
-	var result []models.User
-	for _, user := range r.users {
-		if predicate(user) {
-			result = append(result, user)
-		}
-	}
-	return result
-}
-func (r *InMemoryRepository) filterOrders(predicate func(models.Order) bool) []models.Order {
-	var result []models.Order
-	for _, order := range r.orders {
-		if predicate(order) {
-			result = append(result, order)
-		}
-	}
-	return result
-}
-
 func (r *InMemoryRepository) UnitOfWork() UnitOfWork {
-	fmt.Println("in memory uow")
 	return &InMemoryUnitOfWork{repository: r}
 }
 
@@ -116,8 +86,9 @@ func (r *InMemoryRepository) Rollback() error {
 }
 
 func (r *InMemoryRepository) findUserIDByLogin(_ context.Context, login string) string {
-	users := r.filterUsers(func(o models.User) bool {
-		return o.Login == login
+
+	users := common.FilterMap[models.User](r.users, func(x models.User) bool {
+		return x.Login == login
 	})
 
 	if len(users) == 0 {
@@ -172,8 +143,8 @@ func (r *InMemoryRepository) newUUID() (string, error) {
 
 func (r *InMemoryRepository) FindOrderByNumber(_ context.Context, number string) (models.Order, error) {
 
-	orders := r.filterOrders(func(o models.Order) bool {
-		return o.Number == number
+	orders := common.FilterMap[models.Order](r.orders, func(x models.Order) bool {
+		return x.Number == number
 	})
 
 	if len(orders) == 0 {
@@ -197,8 +168,9 @@ func (r *InMemoryRepository) AddOrder(ctx context.Context, order *models.Order) 
 }
 
 func (r *InMemoryRepository) GetOrdersByUserID(ctx context.Context, userID string) ([]models.Order, error) {
-	orders := r.filterOrders(func(o models.Order) bool {
-		return o.UserID == userID
+
+	orders := common.FilterMap[models.Order](r.orders, func(x models.Order) bool {
+		return x.UserID == userID
 	})
 
 	sort.Slice(orders, func(i, j int) bool {
@@ -210,8 +182,8 @@ func (r *InMemoryRepository) GetOrdersByUserID(ctx context.Context, userID strin
 
 func (r *InMemoryRepository) GetUnprocessedOrders(ctx context.Context) ([]models.Order, error) {
 
-	orders := r.filterOrders(func(o models.Order) bool {
-		return o.Status == models.OrderStatusNew || o.Status == models.OrderStatusProcessing
+	orders := common.FilterMap[models.Order](r.orders, func(x models.Order) bool {
+		return x.Status == models.OrderStatusNew || x.Status == models.OrderStatusProcessing
 	})
 
 	return orders, nil
@@ -291,8 +263,8 @@ func (r *InMemoryRepository) AddWithdrawal(ctx context.Context, item *models.Wit
 
 func (r *InMemoryRepository) GetWithdrawalsByUserID(ctx context.Context, userID string) ([]models.Withdrawal, error) {
 
-	withdrawals := r.filterWithdrawals(func(o models.Withdrawal) bool {
-		return o.UserID == userID
+	withdrawals := common.FilterMap[models.Withdrawal](r.withdrawals, func(x models.Withdrawal) bool {
+		return x.UserID == userID
 	})
 
 	sort.Slice(withdrawals, func(i, j int) bool {
