@@ -37,7 +37,7 @@ func (r *PostgresRepository) UnitOfWork() UnitOfWork {
 
 func (r *PostgresRepository) FindUserByLogin(ctx context.Context, login string) (models.User, error) {
 
-	s := "select id, login, password from users where login=$1"
+	s := "select id, login, password, salt from users where login=$1"
 
 	exec := r.db
 
@@ -45,7 +45,7 @@ func (r *PostgresRepository) FindUserByLogin(ctx context.Context, login string) 
 
 	_, err := common.RetryWithResult(ctx, func() (*sql.Row, error) {
 		r := exec.QueryRowContext(ctx, s, login)
-		err := r.Scan(&user.ID, &user.Login, &user.Password)
+		err := r.Scan(&user.ID, &user.Login, &user.Password, &user.Salt)
 		return r, err
 	})
 
@@ -54,12 +54,12 @@ func (r *PostgresRepository) FindUserByLogin(ctx context.Context, login string) 
 
 func (r *PostgresRepository) AddUser(ctx context.Context, user *models.User) (models.User, error) {
 
-	s := "insert into users (login, password) values ($1, $2) RETURNING id"
+	s := "insert into users (login, password, salt) values ($1, $2, $3) RETURNING id"
 
 	exec := r.db
 
 	_, err := common.RetryWithResult(ctx, func() (interface{}, error) {
-		err := exec.QueryRowContext(ctx, s, user.Login, user.Password).Scan(&user.ID)
+		err := exec.QueryRowContext(ctx, s, user.Login, user.Password, user.Salt).Scan(&user.ID)
 		return nil, err
 	})
 

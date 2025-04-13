@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"log/slog"
 
@@ -24,8 +25,11 @@ func NewAuthService(r repository.Repository, c *config.Config, l *slog.Logger) *
 }
 
 // possible password encryption
-func (s *AuthService) encryptPassword(password string) (string, error) {
-	return password, nil
+func (s *AuthService) encryptPassword(salt []byte, password string) (string, error) {
+
+	passwordHash := auth.HashPassword(password, salt)
+
+	return passwordHash, nil
 }
 
 // possible password validation
@@ -38,14 +42,14 @@ func (s *AuthService) loginIsValid(login string) (bool, error) {
 	return login != "", nil
 }
 
-func newUser(login string, password string) (*models.User, error) {
+func newUser(login string, password string, salt string) (*models.User, error) {
 	if login == "" {
 		return nil, errors.New("empty login")
 	}
 	if password == "" {
 		return nil, errors.New("empty password")
 	}
-	return &models.User{ID: "", Login: login, Password: password}, nil
+	return &models.User{ID: "", Login: login, Password: password, Salt: salt}, nil
 }
 
 func (s *AuthService) Register(ctx context.Context, login string, password string) (string, error) {
@@ -66,13 +70,20 @@ func (s *AuthService) Register(ctx context.Context, login string, password strin
 		return "", common.ErrorInvalidPasswordFormat
 	}
 
-	//ok, adding user
-	encryptedPassword, err := s.encryptPassword(password)
+	salt, err := auth.GenerateSalt(16)
+
 	if err != nil {
 		return "", err
 	}
 
-	u, err := newUser(login, encryptedPassword)
+	//ok, adding user
+	encryptedPassword, err := s.encryptPassword(salt, password)
+	if err != nil {
+		return "", err
+	}
+
+	saltBase64 := base64.StdEncoding.EncodeToString(salt)
+	u, err := newUser(login, encryptedPassword, saltBase64)
 	if err != nil {
 		return "", err
 	}
@@ -99,7 +110,12 @@ func (s *AuthService) Register(ctx context.Context, login string, password strin
 
 func (s *AuthService) validatePassword(password string, existingUser *models.User) (bool, error) {
 
-	encryptedPassword, err := s.encryptPassword(password)
+	salt, err := base64.StdEncoding.DecodeString(existingUser.Salt)
+	if err != nil {
+		return false, err
+	}
+
+	encryptedPassword, err := s.encryptPassword(salt, password)
 	if err != nil {
 		return false, err
 	}

@@ -6,6 +6,7 @@ type User struct {
 	ID             string
 	Login          string
 	Password       string
+	Salt           string
 	AccruedTotal   float32
 	WithdrawnTotal float32
 }
