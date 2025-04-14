@@ -44,16 +44,16 @@ func (app *App) initSignalHandler(cancelFunc context.CancelFunc) {
 
 func (app *App) initRepository(ctx context.Context) (repository.Repository, error) {
 
-	var s repository.Repository
+	var repo repository.Repository
 	var err error
 
 	if app.config.DatabaseURI == "" {
 
-		s, err = repository.NewInMemoryRepository()
+		repo, err = repository.NewInMemoryRepository()
 
 	} else {
 
-		s, err = repository.NewPostgresRepository(ctx, app.config.DatabaseURI)
+		repo, err = repository.NewPostgresRepository(ctx, app.config.DatabaseURI)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +64,15 @@ func (app *App) initRepository(ctx context.Context) (repository.Repository, erro
 		return nil, err
 	}
 
-	return s, nil
+	dbRepo, ok := repo.(repository.DbRepository)
+	if ok {
+		err := dbRepo.RunMigrations(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return repo, nil
 
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/migrations"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )
@@ -21,14 +22,21 @@ func NewPostgresRepository(ctx context.Context, dsn string) (*PostgresRepository
 		return nil, err
 	}
 
-	// default is os.DirFS(".")
-	goose.SetBaseFS(nil)
+	return &PostgresRepository{db}, nil
+}
 
-	if err := goose.UpContext(ctx, db, "./migrations"); err != nil {
-		return nil, err
+func (r *PostgresRepository) RunMigrations(ctx context.Context) error {
+	// default is os.DirFS(".")
+	//goose.SetBaseFS(nil)
+
+	goose.SetBaseFS(migrations.Migrations) // Вот здесь передаём embed FS!
+
+	if err := goose.UpContext(ctx, r.db, "."); err != nil {
+		return err
 	}
 
-	return &PostgresRepository{db}, nil
+	return nil
+
 }
 
 func (r *PostgresRepository) UnitOfWork() UnitOfWork {
