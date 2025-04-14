@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"time"
 )
 
 func parseEnv(config *Config) {
@@ -14,4 +15,17 @@ func parseEnv(config *Config) {
 	if envVar, ok := os.LookupEnv("ACCRUAL_SYSTEM_ADDRESS"); ok && envVar != "" {
 		config.AccrualSystemAddress = envVar
 	}
+	if envVar, ok := os.LookupEnv("SECRET_KEY"); ok && envVar != "" {
+		config.SecretKey = envVar
+	}
+
+	if envVar, ok := os.LookupEnv("TOKEN_VALIDITY"); ok && envVar != "" {
+
+		duration, err := time.ParseDuration(envVar)
+		if err != nil {
+			panic(err)
+		}
+		config.TokenValidityDuration = duration
+	}
+
 }

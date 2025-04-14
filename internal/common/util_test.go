@@ -95,3 +95,51 @@ func TestCheckOrderNumberFormat(t *testing.T) {
 		})
 	}
 }
+
+type args[T any] struct {
+	m         map[string]T
+	predicate func(T) bool
+}
+
+func TestFilterMap(t *testing.T) {
+	mapStringInt := map[string]int{
+		"a": 1,
+		"b": 2,
+		"c": 3,
+	}
+
+	tests := []struct {
+		name string
+		args args[int]
+		want []int
+	}{
+		{"Test1", args[int]{mapStringInt, func(x int) bool { return x == 2 }}, []int{2}},
+		{"Test2", args[int]{mapStringInt, func(x int) bool { return x > 1 }}, []int{2, 3}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FilterMap(tt.args.m, tt.args.predicate)
+			if !equalIgnoreOrder(got, tt.want) {
+				t.Errorf("FilterMap() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func equalIgnoreOrder[T comparable](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	counts := make(map[T]int)
+	for _, x := range a {
+		counts[x]++
+	}
+	for _, x := range b {
+		if counts[x] == 0 {
+			return false
+		}
+		counts[x]--
+	}
+	return true
+}
