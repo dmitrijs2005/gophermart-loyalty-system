@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -70,13 +69,7 @@ func TestRepository(t *testing.T) {
 		postgres.BasicWaitStrategies(),
 		postgres.WithSQLDriver("pgx"),
 	)
-
-	a, b := findMigrationsDir()
-	fmt.Println(a, b)
-
-	fmt.Println(123)
-	_, filename, _, _ := runtime.Caller(0)
-	fmt.Println(filename)
+	require.NoError(t, err)
 
 	dbURI, err := ctr.ConnectionString(ctx)
 	require.NoError(t, err)
@@ -87,6 +80,7 @@ func TestRepository(t *testing.T) {
 	err = repo.RunMigrations(ctx)
 	require.NoError(t, err)
 
+	// cleanup after tests
 	testcontainers.CleanupContainer(t, ctr)
 	require.NoError(t, err)
 

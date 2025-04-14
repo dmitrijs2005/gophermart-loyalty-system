@@ -64,7 +64,7 @@ func (app *App) initRepository(ctx context.Context) (repository.Repository, erro
 		return nil, err
 	}
 
-	dbRepo, ok := repo.(repository.DbRepository)
+	dbRepo, ok := repo.(repository.DBStorage)
 	if ok {
 		err := dbRepo.RunMigrations(ctx)
 		if err != nil {

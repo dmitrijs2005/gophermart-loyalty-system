@@ -6,7 +6,7 @@ import (
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
 )
 
-type DbRepository interface {
+type DBStorage interface {
 	RunMigrations(ctx context.Context) error
 }
 
