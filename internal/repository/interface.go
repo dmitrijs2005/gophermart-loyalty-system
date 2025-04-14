@@ -26,13 +26,13 @@ type Repository interface {
 	FindOrderByNumber(ctx context.Context, number string) (models.Order, error)
 
 	GetUnprocessedOrders(ctx context.Context) ([]models.Order, error)
-	//FindOrderByID(ctx context.Context, id string) (models.Order, error)
 	UpdateOrderAccrualStatus(ctx context.Context, id string, status models.OrderStatus, accrual float32) error
 	UpdateUserAccruedTotel(ctx context.Context, userID string, amount float32) error
 	UpdateUserWithdrawnTotel(ctx context.Context, userID string, amount float32) error
 	GetOrdersByUserID(ctx context.Context, userID string) ([]models.Order, error)
 	AddWithdrawal(ctx context.Context, withdrawal *models.Withdrawal) error
 	GetWithdrawalsByUserID(ctx context.Context, userID string) ([]models.Withdrawal, error)
+	GetWithdrawalsTotalAmountByUserID(ctx context.Context, userID string) (float32, error)
 }
 
 type UnitOfWorkTx interface {

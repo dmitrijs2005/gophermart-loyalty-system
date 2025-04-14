@@ -123,14 +123,6 @@ func (r *InMemoryRepository) AddUser(ctx context.Context, user *models.User) (mo
 	return *user, nil
 }
 
-func (r *InMemoryRepository) FindOrderByID(ctx context.Context, id string) (models.Order, error) {
-	o, exists := r.orders[id]
-	if !exists {
-		return models.Order{}, common.ErrorOrderDoesNotExist
-	}
-	return o, nil
-}
-
 func (r *InMemoryRepository) newUUID() (string, error) {
 
 	id, err := uuid.NewRandom()
@@ -220,6 +212,20 @@ func (r *InMemoryRepository) UpdateUserAccruedTotel(ctx context.Context, userID 
 	r.users[userID] = user
 
 	return nil
+
+}
+
+func (r *InMemoryRepository) GetWithdrawalsTotalAmountByUserID(ctx context.Context, userID string) (float32, error) {
+	withdrawals := common.FilterMap[models.Withdrawal](r.withdrawals, func(x models.Withdrawal) bool {
+		return x.UserID == userID
+	})
+
+	var res float32
+	for _, w := range withdrawals {
+		res += w.Amount
+	}
+
+	return res, nil
 
 }
 

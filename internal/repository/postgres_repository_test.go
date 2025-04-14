@@ -2,61 +2,23 @@ package repository
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
 
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/common"
+	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/models"
+	"github.com/go-playground/assert/v2"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
-func runMigrations(t *testing.T, db *sql.DB, migrationsDir string) {
-	t.Helper()
-
-	err := goose.SetDialect("postgres")
-	require.NoError(t, err)
-
-	err = goose.Up(db, migrationsDir)
-	require.NoError(t, err)
-}
-
-func findMigrationsDir() (string, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	// Сначала попробуем "migrations" в корне проекта
-	path := filepath.Join(wd, "migrations")
-	if _, err := os.Stat(path); err == nil {
-		return path, nil
-	}
-
-	// Или попробуем рядом с исполняемым файлом
-	exePath, err := os.Executable()
-	if err != nil {
-		return "", err
-	}
-	exeDir := filepath.Dir(exePath)
-	path = filepath.Join(exeDir, "migrations")
-	if _, err := os.Stat(path); err == nil {
-		return path, nil
-	}
-
-	return "", fmt.Errorf("migrations folder not found")
-}
-
 func TestRepository(t *testing.T) {
 	ctx := context.Background()
 
 	dbname := "test"
-	user := "test"
-	password := "test"
+	dbuser := "test"
+	dbpassword := "test"
 
 	// Start Postgres container
 	// 1. Start the postgres ctr and run any migrations on it
@@ -64,8 +26,8 @@ func TestRepository(t *testing.T) {
 		ctx,
 		"postgres:16-alpine",
 		postgres.WithDatabase(dbname),
-		postgres.WithUsername(user),
-		postgres.WithPassword(password),
+		postgres.WithUsername(dbuser),
+		postgres.WithPassword(dbpassword),
 		postgres.BasicWaitStrategies(),
 		postgres.WithSQLDriver("pgx"),
 	)
@@ -84,47 +46,76 @@ func TestRepository(t *testing.T) {
 	testcontainers.CleanupContainer(t, ctr)
 	require.NoError(t, err)
 
+	u := &models.User{
+		Login:    "user1",
+		Password: "password1",
+	}
+
+	user1, err := repo.AddUser(ctx, u)
+	require.NoError(t, err)
+	require.NotZero(t, user1.ID)
+
+	user1Order1 := &models.Order{
+		Number: "4561261212345467", UserID: user1.ID,
+	}
+
+	_, err = repo.AddOrder(ctx, user1Order1)
+	require.NoError(t, err)
+
+	u = &models.User{
+		Login:    "user2",
+		Password: "password2",
+	}
+
+	user2, err := repo.AddUser(ctx, u)
+	require.NoError(t, err)
+	require.NotZero(t, user2.ID)
+
+	user2Order1 := &models.Order{
+		Number: "374245455400126", UserID: user2.ID,
+	}
+	user2Order2 := &models.Order{
+		Number: "5425233430109903", UserID: user2.ID,
+	}
+
+	_, err = repo.AddOrder(ctx, user2Order1)
+	require.NoError(t, err)
+
+	_, err = repo.AddOrder(ctx, user2Order2)
+	require.NoError(t, err)
+
+	// find non-existing user, should be an error
+	_, err = repo.FindUserByLogin(ctx, "userunknown")
+	require.ErrorIs(t, err, common.ErrorNotFound)
+
+	//find user1
+	t.Run("FinUser1ByLogin", func(t *testing.T) {
+		user, err := repo.FindUserByLogin(ctx, "user1")
+		require.NoError(t, err)
+		assert.Equal(t, user.Login, user1.Login)
+	})
+
+	t.Run("FindNonExistingOrder", func(t *testing.T) {
+		_, err = repo.FindOrderByNumber(ctx, "123123")
+		require.ErrorIs(t, err, common.ErrorNotFound)
+	})
+
+	t.Run("AddWithdrawalToUser1", func(t *testing.T) {
+		w := &models.Withdrawal{UserID: user1.ID, Amount: 1}
+		err = repo.AddWithdrawal(ctx, w)
+		require.NoError(t, err)
+	})
+
+	t.Run("AddAnotherWithdrawalToUser1", func(t *testing.T) {
+		w := &models.Withdrawal{UserID: user1.ID, Amount: 2.50}
+		err = repo.AddWithdrawal(ctx, w)
+		require.NoError(t, err)
+	})
+
+	t.Run("GetWithdrawalsTotalAmountByUserID", func(t *testing.T) {
+		res, err := repo.GetWithdrawalsTotalAmountByUserID(ctx, user1.ID)
+		require.NoError(t, err)
+		assert.Equal(t, res, float32(3.50))
+	})
+
 }
-
-// 	require.NoError(t, err)
-// 	defer pgContainer.Terminate(ctx)
-
-// 	dbURI, err := pgContainer.ConnectionString(ctx, "postgresql://postgres:postgres@postgres/praktikum?sslmode=disable")
-// 	require.NoError(t, err)
-
-// 	//dbURI := "postgresql://postgres:postgres@postgres/praktikum?sslmode=disable"
-
-// 	db, err := sql.Open("pgx", dbURI)
-// 	require.NoError(t, err)
-
-// 	err = db.PingContext(ctx)
-// 	require.NoError(t, err)
-
-// 	// Create test table
-// 	_, err = db.ExecContext(ctx, `
-//         CREATE TABLE users (
-//             id SERIAL PRIMARY KEY,
-//             name TEXT NOT NULL,
-//             email TEXT NOT NULL UNIQUE
-//         );
-//     `)
-// 	require.NoError(t, err)
-
-// 	// Now test the repository
-// 	_, err = NewPostgresRepository(ctx, dbURI)
-// 	require.NoError(t, err)
-
-// 	// user := &repository.User{
-// 	// 	Name:  "Alice",
-// 	// 	Email: "alice@example.com",
-// 	// }
-
-// 	// err = userRepo.Create(ctx, user)
-// 	// require.NoError(t, err)
-// 	// require.NotZero(t, user.ID)
-
-// 	// foundUser, err := userRepo.GetByID(ctx, user.ID)
-// 	// require.NoError(t, err)
-// 	// require.Equal(t, user.Name, foundUser.Name)
-// 	// require.Equal(t, user.Email, foundUser.Email)
-// }

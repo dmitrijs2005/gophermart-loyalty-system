@@ -54,7 +54,15 @@ func (r *PostgresRepository) FindUserByLogin(ctx context.Context, login string) 
 	_, err := common.RetryWithResult(ctx, func() (*sql.Row, error) {
 		r := exec.QueryRowContext(ctx, s, login)
 		err := r.Scan(&user.ID, &user.Login, &user.Password, &user.Salt)
-		return r, err
+
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, common.ErrorNotFound
+			}
+			return nil, err
+		}
+
+		return r, nil
 	})
 
 	return user, err
@@ -72,17 +80,6 @@ func (r *PostgresRepository) AddUser(ctx context.Context, user *models.User) (mo
 	})
 
 	return *user, err
-}
-
-func (r *PostgresRepository) FindOrderByID(ctx context.Context, id string) (models.Order, error) {
-	// o, exists := r.orders[id]
-	// if !exists {
-	// 	return models.Order{}, common.ErrorOrderDoesNotExist
-	// }
-	// return o, nil
-
-	return models.Order{}, nil
-
 }
 
 func (r *PostgresRepository) FindOrderByNumber(ctx context.Context, number string) (models.Order, error) {
@@ -138,6 +135,10 @@ func (r *PostgresRepository) GetOrdersByUserID(ctx context.Context, userID strin
 		return nil, err
 	}
 
+	return r.getOrdersFromRows(rows)
+}
+
+func (r *PostgresRepository) getOrdersFromRows(rows *sql.Rows) ([]models.Order, error) {
 	var orders = []models.Order{}
 
 	defer rows.Close()
@@ -154,12 +155,12 @@ func (r *PostgresRepository) GetOrdersByUserID(ctx context.Context, userID strin
 		return nil, err
 	}
 
-	return orders, err
+	return orders, nil
 }
 
 func (r *PostgresRepository) GetUnprocessedOrders(ctx context.Context) ([]models.Order, error) {
 
-	s := "select id, user_id, number, uploaded_at, accrual from orders where status in ($1,  $2)"
+	s := "select id, user_id, number, uploaded_at, accrual, status from orders where status in ($1,  $2)"
 
 	exec := r.db
 
@@ -168,23 +169,11 @@ func (r *PostgresRepository) GetUnprocessedOrders(ctx context.Context) ([]models
 		return rows, err
 	})
 
-	var orders = []models.Order{}
-
-	defer rows.Close()
-	for rows.Next() {
-		var order = models.Order{}
-		err := rows.Scan(&order.ID, &order.UserID, &order.Number, &order.UploadedAt, &order.Accrual)
-		if err != nil {
-			return nil, err
-		}
-		orders = append(orders, order)
-	}
-
-	if err := rows.Err(); err != nil {
+	if err != nil {
 		return nil, err
 	}
 
-	return orders, err
+	return r.getOrdersFromRows(rows)
 
 }
 
@@ -262,6 +251,26 @@ func (r *PostgresRepository) AddWithdrawal(ctx context.Context, item *models.Wit
 	})
 
 	return err
+
+}
+
+func (r *PostgresRepository) GetWithdrawalsTotalAmountByUserID(ctx context.Context, userID string) (float32, error) {
+	s := "select sum(amount) from withdrawals where user_id = $1"
+
+	var res float32
+
+	_, err := common.RetryWithResult(ctx, func() (any, error) {
+		err := r.db.QueryRowContext(ctx, s, userID).Scan(&res)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, common.ErrorNotFound
+			}
+			return nil, err
+		}
+		return nil, err
+	})
+
+	return res, err
 
 }
 
