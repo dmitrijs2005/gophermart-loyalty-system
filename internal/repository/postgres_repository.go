@@ -26,8 +26,6 @@ func NewPostgresRepository(ctx context.Context, dsn string) (*PostgresRepository
 }
 
 func (r *PostgresRepository) RunMigrations(ctx context.Context) error {
-	// default is os.DirFS(".")
-	//goose.SetBaseFS(nil)
 
 	goose.SetBaseFS(migrations.Migrations) // Вот здесь передаём embed FS!
 
@@ -47,12 +45,10 @@ func (r *PostgresRepository) FindUserByLogin(ctx context.Context, login string) 
 
 	s := "select id, login, password, salt from users where login=$1"
 
-	exec := r.db
-
 	var user models.User
 
 	_, err := common.RetryWithResult(ctx, func() (*sql.Row, error) {
-		r := exec.QueryRowContext(ctx, s, login)
+		r := r.db.QueryRowContext(ctx, s, login)
 		err := r.Scan(&user.ID, &user.Login, &user.Password, &user.Salt)
 
 		if err != nil {
@@ -72,10 +68,8 @@ func (r *PostgresRepository) AddUser(ctx context.Context, user *models.User) (mo
 
 	s := "insert into users (login, password, salt) values ($1, $2, $3) RETURNING id"
 
-	exec := r.db
-
 	_, err := common.RetryWithResult(ctx, func() (interface{}, error) {
-		err := exec.QueryRowContext(ctx, s, user.Login, user.Password, user.Salt).Scan(&user.ID)
+		err := r.db.QueryRowContext(ctx, s, user.Login, user.Password, user.Salt).Scan(&user.ID)
 		return nil, err
 	})
 
@@ -84,13 +78,12 @@ func (r *PostgresRepository) AddUser(ctx context.Context, user *models.User) (mo
 
 func (r *PostgresRepository) FindOrderByNumber(ctx context.Context, number string) (models.Order, error) {
 
-	exec := r.db
 	var order models.Order
 
 	s := "select id, user_id, number, uploaded_at, accrual from orders where number = $1 order by uploaded_at desc"
 
 	_, err := common.RetryWithResult(ctx, func() (*sql.Row, error) {
-		r := exec.QueryRowContext(ctx, s, number)
+		r := r.db.QueryRowContext(ctx, s, number)
 		err := r.Scan(&order.ID, &order.UserID, &order.Number, &order.UploadedAt, &order.Accrual)
 
 		if err != nil {
@@ -109,10 +102,8 @@ func (r *PostgresRepository) AddOrder(ctx context.Context, order *models.Order) 
 
 	s := "insert into orders (user_id, number, status) values ($1, $2, $3) RETURNING id"
 
-	exec := r.db
-
 	_, err := common.RetryWithResult(ctx, func() (interface{}, error) {
-		err := exec.QueryRowContext(ctx, s, order.UserID, order.Number, order.Status).Scan(&order.ID)
+		err := r.db.QueryRowContext(ctx, s, order.UserID, order.Number, order.Status).Scan(&order.ID)
 		return nil, err
 	})
 
@@ -124,10 +115,8 @@ func (r *PostgresRepository) GetOrdersByUserID(ctx context.Context, userID strin
 
 	s := "select id, user_id, number, uploaded_at, accrual, status from orders where user_id = $1 order by uploaded_at desc"
 
-	exec := r.db
-
 	rows, err := common.RetryWithResult(ctx, func() (*sql.Rows, error) {
-		rows, err := exec.QueryContext(ctx, s, userID)
+		rows, err := r.db.QueryContext(ctx, s, userID)
 		return rows, err
 	})
 
@@ -162,10 +151,8 @@ func (r *PostgresRepository) GetUnprocessedOrders(ctx context.Context) ([]models
 
 	s := "select id, user_id, number, uploaded_at, accrual, status from orders where status in ($1,  $2)"
 
-	exec := r.db
-
 	rows, err := common.RetryWithResult(ctx, func() (*sql.Rows, error) {
-		rows, err := exec.QueryContext(ctx, s, models.OrderStatusNew, models.OrderStatusProcessing)
+		rows, err := r.db.QueryContext(ctx, s, models.OrderStatusNew, models.OrderStatusProcessing)
 		return rows, err
 	})
 
@@ -181,10 +168,8 @@ func (r *PostgresRepository) UpdateOrderAccrualStatus(ctx context.Context, order
 
 	s := "update orders set status = $1, accrual = $2 where id = $3"
 
-	exec := r.db
-
 	_, err := common.RetryWithResult(ctx, func() (sql.Result, error) {
-		res, err := exec.ExecContext(ctx, s, status, accrual, orderID)
+		res, err := r.db.ExecContext(ctx, s, status, accrual, orderID)
 		return res, err
 	})
 
@@ -196,10 +181,8 @@ func (r *PostgresRepository) UpdateUserAccruedTotel(ctx context.Context, userID 
 
 	s := "update users set accrued_total = $1 where id = $2"
 
-	exec := r.db
-
 	_, err := common.RetryWithResult(ctx, func() (sql.Result, error) {
-		res, err := exec.ExecContext(ctx, s, amount, userID)
+		res, err := r.db.ExecContext(ctx, s, amount, userID)
 		return res, err
 	})
 
@@ -211,10 +194,8 @@ func (r *PostgresRepository) UpdateUserWithdrawnTotel(ctx context.Context, userI
 
 	s := "update users set withdrawn_total = $1 where id = $2"
 
-	exec := r.db
-
 	_, err := common.RetryWithResult(ctx, func() (sql.Result, error) {
-		res, err := exec.ExecContext(ctx, s, amount, userID)
+		res, err := r.db.ExecContext(ctx, s, amount, userID)
 		return res, err
 	})
 
@@ -225,12 +206,10 @@ func (r *PostgresRepository) UpdateUserWithdrawnTotel(ctx context.Context, userI
 func (r *PostgresRepository) FindUserByID(ctx context.Context, userID string) (models.User, error) {
 	s := "select id, login, password, accrued_total, withdrawn_total from users where id=$1"
 
-	exec := r.db
-
 	var user models.User
 
 	_, err := common.RetryWithResult(ctx, func() (*sql.Row, error) {
-		r := exec.QueryRowContext(ctx, s, userID)
+		r := r.db.QueryRowContext(ctx, s, userID)
 		err := r.Scan(&user.ID, &user.Login, &user.Password, &user.AccruedTotal, &user.WithdrawnTotal)
 		return r, err
 	})
@@ -243,10 +222,8 @@ func (r *PostgresRepository) AddWithdrawal(ctx context.Context, item *models.Wit
 
 	s := "insert into withdrawals (user_id, \"order\", amount) values ($1, $2, $3)"
 
-	exec := r.db
-
 	_, err := common.RetryWithResult(ctx, func() (sql.Result, error) {
-		res, err := exec.ExecContext(ctx, s, item.UserID, item.Order, item.Amount)
+		res, err := r.db.ExecContext(ctx, s, item.UserID, item.Order, item.Amount)
 		return res, err
 	})
 
@@ -297,10 +274,8 @@ func (r *PostgresRepository) GetWithdrawalsByUserID(ctx context.Context, userID 
 
 	s := "select id, user_id, \"order\", uploaded_at, amount from withdrawals where user_id = $1 order by uploaded_at desc"
 
-	exec := r.db
-
 	rows, err := common.RetryWithResult(ctx, func() (*sql.Rows, error) {
-		rows, err := exec.QueryContext(ctx, s, userID)
+		rows, err := r.db.QueryContext(ctx, s, userID)
 		return rows, err
 	})
 
