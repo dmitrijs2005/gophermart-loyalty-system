@@ -108,16 +108,10 @@ func (s *BalanceService) processOrder(ctx context.Context, order models.Order) e
 
 func (s *BalanceService) recalculateAccruals(ctx context.Context, userID string) error {
 
-	orders, err := s.repository.GetOrdersByUserID(ctx, userID)
+	totalAccrued, err := s.repository.GetAccrualsTotalAmountByUserID(ctx, userID)
 	if err != nil {
-		s.logger.ErrorContext(ctx, err.Error())
 		return err
 	}
-	var totalAccrued float32
-	for _, o := range orders {
-		totalAccrued += o.Accrual
-	}
-
 	s.logger.With("user_id", userID).InfoContext(ctx, "Updating accrued total", "amount", totalAccrued)
 
 	return s.repository.UpdateUserAccruedTotel(ctx, userID, totalAccrued)
@@ -156,19 +150,14 @@ func (s *BalanceService) GetUserBalance(ctx context.Context, userID string) (*mo
 		return nil, err
 	}
 
-	// - float32(user.WithdrawnTotal)
 	return &models.BalanceDTO{Current: user.AccruedTotal - user.WithdrawnTotal, Withdrawn: user.WithdrawnTotal}, nil
 }
 
 func (s *BalanceService) recalculateWithdrawals(ctx context.Context, userID string) error {
 
-	withdrawals, err := s.repository.GetWithdrawalsByUserID(ctx, userID)
+	totalWithdrawn, err := s.repository.GetWithdrawalsTotalAmountByUserID(ctx, userID)
 	if err != nil {
 		return err
-	}
-	var totalWithdrawn float32
-	for _, w := range withdrawals {
-		totalWithdrawn += w.Amount
 	}
 
 	s.logger.With("user_id", userID).InfoContext(ctx, "Updating withdrawn total", "amount", totalWithdrawn)

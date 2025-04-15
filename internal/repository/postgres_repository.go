@@ -255,7 +255,7 @@ func (r *PostgresRepository) AddWithdrawal(ctx context.Context, item *models.Wit
 }
 
 func (r *PostgresRepository) GetWithdrawalsTotalAmountByUserID(ctx context.Context, userID string) (float32, error) {
-	s := "select sum(amount) from withdrawals where user_id = $1"
+	s := "select coalesce(sum(amount), 0) from withdrawals where user_id = $1"
 
 	var res float32
 
@@ -272,6 +272,25 @@ func (r *PostgresRepository) GetWithdrawalsTotalAmountByUserID(ctx context.Conte
 
 	return res, err
 
+}
+
+func (r *PostgresRepository) GetAccrualsTotalAmountByUserID(ctx context.Context, userID string) (float32, error) {
+	s := "select coalesce(sum(accrual),0) from orders where user_id = $1 and status = $2"
+
+	var res float32
+
+	_, err := common.RetryWithResult(ctx, func() (any, error) {
+		err := r.db.QueryRowContext(ctx, s, userID, models.OrderStatusProcessed).Scan(&res)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, common.ErrorNotFound
+			}
+			return nil, err
+		}
+		return nil, err
+	})
+
+	return res, err
 }
 
 func (r *PostgresRepository) GetWithdrawalsByUserID(ctx context.Context, userID string) ([]models.Withdrawal, error) {

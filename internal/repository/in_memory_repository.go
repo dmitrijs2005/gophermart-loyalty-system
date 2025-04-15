@@ -246,6 +246,10 @@ func (r *InMemoryRepository) UpdateUserWithdrawnTotel(ctx context.Context, userI
 }
 
 func (r *InMemoryRepository) FindUserByID(ctx context.Context, userID string) (models.User, error) {
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	user, exists := r.users[userID]
 	if !exists {
 		return models.User{}, common.ErrorNotFound
@@ -269,6 +273,9 @@ func (r *InMemoryRepository) AddWithdrawal(ctx context.Context, item *models.Wit
 
 func (r *InMemoryRepository) GetWithdrawalsByUserID(ctx context.Context, userID string) ([]models.Withdrawal, error) {
 
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	withdrawals := common.FilterMap[models.Withdrawal](r.withdrawals, func(x models.Withdrawal) bool {
 		return x.UserID == userID
 	})
@@ -278,4 +285,22 @@ func (r *InMemoryRepository) GetWithdrawalsByUserID(ctx context.Context, userID 
 	})
 
 	return withdrawals, nil
+}
+
+func (r *InMemoryRepository) GetAccrualsTotalAmountByUserID(ctx context.Context, userID string) (float32, error) {
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	orders := common.FilterMap[models.Order](r.orders, func(x models.Order) bool {
+		return x.UserID == userID && x.Status == models.OrderStatusProcessed
+	})
+
+	var res float32
+	for _, w := range orders {
+		res += w.Accrual
+	}
+
+	return res, nil
+
 }

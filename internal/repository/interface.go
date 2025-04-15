@@ -13,7 +13,6 @@ type DBStorage interface {
 type Repository interface {
 
 	// transaction related
-	//BeginTransaction(ctx context.Context) error
 	UnitOfWork() UnitOfWork
 
 	// user related
@@ -33,6 +32,7 @@ type Repository interface {
 	AddWithdrawal(ctx context.Context, withdrawal *models.Withdrawal) error
 	GetWithdrawalsByUserID(ctx context.Context, userID string) ([]models.Withdrawal, error)
 	GetWithdrawalsTotalAmountByUserID(ctx context.Context, userID string) (float32, error)
+	GetAccrualsTotalAmountByUserID(ctx context.Context, userID string) (float32, error)
 }
 
 type UnitOfWorkTx interface {
