@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/auth"
@@ -27,8 +28,10 @@ func NewAuthService(r repository.Repository, c *config.Config, l *slog.Logger) *
 // possible password encryption
 func (s *AuthService) encryptPassword(salt []byte, password string) (string, error) {
 
-	passwordHash := auth.HashPassword(password, salt)
-
+	passwordHash := password
+	if s.config.DatabaseURI != "" {
+		passwordHash = auth.HashPassword(password, salt)
+	}
 	return passwordHash, nil
 }
 
@@ -110,9 +113,14 @@ func (s *AuthService) Register(ctx context.Context, login string, password strin
 
 func (s *AuthService) validatePassword(password string, existingUser *models.User) (bool, error) {
 
-	salt, err := base64.StdEncoding.DecodeString(existingUser.Salt)
-	if err != nil {
-		return false, err
+	salt := []byte{}
+
+	var err error
+	if s.config.DatabaseURI != "" {
+		salt, err = base64.StdEncoding.DecodeString(existingUser.Salt)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	encryptedPassword, err := s.encryptPassword(salt, password)
@@ -128,21 +136,25 @@ func (s *AuthService) Login(ctx context.Context, login string, password string) 
 
 	existingLogin, err := s.repository.FindUserByLogin(ctx, login)
 	if err != nil {
+		fmt.Println(111)
 		return "", err
 	}
 
 	//ok, adding user
 	passwordIsOk, err := s.validatePassword(password, &existingLogin)
 	if err != nil {
+		fmt.Println(222)
 		return "", err
 	}
 
 	if !passwordIsOk {
+		fmt.Println(333)
 		return "", common.ErrorInvalidLoginPassword
 	}
 
 	t, err := auth.GenerateToken(existingLogin.ID, s.config.SecretKey, &s.config.TokenValidityDuration)
 	if err != nil {
+		fmt.Println(444)
 		return "", err
 	}
 
