@@ -13,34 +13,54 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
-func TestRepository(t *testing.T) {
+func TestRepositoryImplementations(t *testing.T) {
+
 	ctx := context.Background()
 
-	dbname := "test"
-	dbuser := "test"
-	dbpassword := "test"
+	t.Run("InMemory", func(t *testing.T) {
+		repo, err := NewInMemoryRepository()
+		require.NoError(t, err)
+		RunRepositoryTests(t, ctx, "InMemory", repo)
+	})
 
-	// Start Postgres container
-	// 1. Start the postgres ctr and run any migrations on it
-	ctr, err := postgres.Run(
-		ctx,
-		"postgres:16-alpine",
-		postgres.WithDatabase(dbname),
-		postgres.WithUsername(dbuser),
-		postgres.WithPassword(dbpassword),
-		postgres.BasicWaitStrategies(),
-		postgres.WithSQLDriver("pgx"),
-	)
-	require.NoError(t, err)
+	t.Run("Postgres", func(t *testing.T) {
 
-	dbURI, err := ctr.ConnectionString(ctx)
-	require.NoError(t, err)
+		dbname := "test"
+		dbuser := "test"
+		dbpassword := "test"
 
-	repo, err := NewPostgresRepository(ctx, dbURI)
-	require.NoError(t, err)
+		// Start Postgres container
+		// 1. Start the postgres ctr and run any migrations on it
+		ctr, err := postgres.Run(
+			ctx,
+			"postgres:16-alpine",
+			postgres.WithDatabase(dbname),
+			postgres.WithUsername(dbuser),
+			postgres.WithPassword(dbpassword),
+			postgres.BasicWaitStrategies(),
+			postgres.WithSQLDriver("pgx"),
+		)
+		require.NoError(t, err)
 
-	err = repo.RunMigrations(ctx)
-	require.NoError(t, err)
+		dbURI, err := ctr.ConnectionString(ctx)
+		require.NoError(t, err)
+
+		repo, err := NewPostgresRepository(ctx, dbURI)
+		require.NoError(t, err)
+
+		err = repo.RunMigrations(ctx)
+		require.NoError(t, err)
+
+		RunRepositoryTests(t, ctx, "Postgres", repo)
+
+		testcontainers.CleanupContainer(t, ctr)
+
+	})
+}
+
+func RunRepositoryTests(t *testing.T, ctx context.Context, name string, repo Repository) {
+
+	var err error
 
 	var user1, user2 models.User
 	var user1order1 models.Order
@@ -206,7 +226,5 @@ func TestRepository(t *testing.T) {
 		assert.Equal(t, user.WithdrawnTotal, float32(3.5))
 
 	})
-
-	testcontainers.CleanupContainer(t, ctr)
 
 }
