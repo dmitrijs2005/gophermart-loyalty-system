@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -85,13 +84,13 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
 		if err := server.Shutdown(context.Background()); err != nil {
-			s.logger.ErrorContext(ctx, "Error", "err", err.Error())
+			s.logger.ErrorContext(ctx, "Error shutting server down", "err", err.Error())
 		}
 	}()
 
 	err := server.ListenAndServe()
 	if err != nil {
-		fmt.Println(err)
+		s.logger.ErrorContext(ctx, "Error", "err", err.Error())
 		return err
 	}
 

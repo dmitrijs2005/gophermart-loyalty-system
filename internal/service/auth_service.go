@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"log/slog"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/auth"
@@ -136,25 +135,21 @@ func (s *AuthService) Login(ctx context.Context, login string, password string) 
 
 	existingLogin, err := s.repository.FindUserByLogin(ctx, login)
 	if err != nil {
-		fmt.Println(111)
 		return "", err
 	}
 
 	//ok, adding user
 	passwordIsOk, err := s.validatePassword(password, &existingLogin)
 	if err != nil {
-		fmt.Println(222)
 		return "", err
 	}
 
 	if !passwordIsOk {
-		fmt.Println(333)
 		return "", common.ErrorInvalidLoginPassword
 	}
 
 	t, err := auth.GenerateToken(existingLogin.ID, s.config.SecretKey, &s.config.TokenValidityDuration)
 	if err != nil {
-		fmt.Println(444)
 		return "", err
 	}
 

@@ -2,7 +2,7 @@ package task
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/dmitrijs2005/gophermart-loyalty-system/internal/config"
@@ -12,10 +12,11 @@ import (
 type AccrualCheckerTask struct {
 	config  *config.Config
 	service *service.BalanceService
+	logger  *slog.Logger
 }
 
-func NewAccrualCheckerTask(config *config.Config, service *service.BalanceService) *AccrualCheckerTask {
-	return &AccrualCheckerTask{config: config, service: service}
+func NewAccrualCheckerTask(c *config.Config, s *service.BalanceService, l *slog.Logger) *AccrualCheckerTask {
+	return &AccrualCheckerTask{config: c, service: s, logger: l}
 }
 
 func (t *AccrualCheckerTask) Start(ctx context.Context) {
@@ -26,7 +27,7 @@ func (t *AccrualCheckerTask) Start(ctx context.Context) {
 		case <-time.After(3 * time.Second):
 			err := t.service.ProcessPendingOrders(ctx)
 			if err != nil {
-				fmt.Println(err)
+				t.logger.ErrorContext(ctx, "Error processing task", "err", err.Error())
 			}
 		}
 	}

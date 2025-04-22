@@ -93,13 +93,14 @@ func (app *App) startHTTPServer(ctx context.Context, cancelFunc context.CancelFu
 	}()
 }
 
-func (app *App) startCheckingTask(ctx context.Context, wg *sync.WaitGroup, serviceProvider *service.ServiceProvider) {
+func (app *App) startCheckingTask(ctx context.Context, wg *sync.WaitGroup,
+	serviceProvider *service.ServiceProvider, logger *slog.Logger) {
 
 	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
-		task := task.NewAccrualCheckerTask(app.config, serviceProvider.BalanceService)
+		task := task.NewAccrualCheckerTask(app.config, serviceProvider.BalanceService, logger)
 		task.Start(ctx)
 	}()
 }
@@ -122,7 +123,7 @@ func (app *App) Run() error {
 	var wg sync.WaitGroup
 
 	app.startHTTPServer(ctx, cancelFunc, &wg, serviceProvider, logger)
-	app.startCheckingTask(ctx, &wg, serviceProvider)
+	app.startCheckingTask(ctx, &wg, serviceProvider, logger)
 
 	wg.Wait()
 
