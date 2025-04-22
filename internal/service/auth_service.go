@@ -14,14 +14,14 @@ import (
 )
 
 type AuthService struct {
-	BaseService
-	repository repository.Repository
-	config     *config.Config
-	logger     *slog.Logger
+	baseService BaseService
+	repository  repository.Repository
+	config      *config.Config
+	logger      *slog.Logger
 }
 
 func NewAuthService(r repository.Repository, c *config.Config, l *slog.Logger) *AuthService {
-	return &AuthService{repository: r, config: c, logger: l}
+	return &AuthService{repository: r, config: c, logger: l, baseService: BaseService{}}
 }
 
 // possible password encryption
@@ -94,7 +94,7 @@ func (s *AuthService) Register(ctx context.Context, login string, password strin
 	if err != nil {
 		return "", err
 	}
-	defer s.EndTransaction(tx, &err)
+	defer s.baseService.EndTransaction(tx, &err)
 
 	user, err := s.repository.AddUser(ctx, u)
 	if err != nil {

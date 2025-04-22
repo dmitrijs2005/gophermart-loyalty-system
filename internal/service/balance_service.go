@@ -17,14 +17,14 @@ import (
 )
 
 type BalanceService struct {
-	BaseService
-	repository repository.Repository
-	config     *config.Config
-	logger     *slog.Logger
+	baseService BaseService
+	repository  repository.Repository
+	config      *config.Config
+	logger      *slog.Logger
 }
 
 func NewBalanceService(r repository.Repository, c *config.Config, l *slog.Logger) *BalanceService {
-	return &BalanceService{repository: r, config: c, logger: l.With("task", "process_pending_orders")}
+	return &BalanceService{repository: r, config: c, baseService: BaseService{}, logger: l.With("task", "process_pending_orders")}
 }
 
 func (s *BalanceService) checkOrderStatusInAccrualSystem(ctx context.Context, number string) (*models.AccrualStatusDTO, error) {
@@ -95,7 +95,7 @@ func (s *BalanceService) processOrder(ctx context.Context, order models.Order) e
 	if err != nil {
 		return err
 	}
-	defer s.EndTransaction(tx, &err)
+	defer s.baseService.EndTransaction(tx, &err)
 
 	err = s.repository.UpdateOrderAccrualStatus(ctx, order.ID, newStatus, accrualAmount)
 
@@ -172,7 +172,7 @@ func (s *BalanceService) Withdraw(ctx context.Context, userID string, request *m
 	if err != nil {
 		return err
 	}
-	defer s.EndTransaction(tx, &err)
+	defer s.baseService.EndTransaction(tx, &err)
 
 	correct, err := common.CheckOrderNumberFormat(request.Order)
 	if err != nil || !correct {

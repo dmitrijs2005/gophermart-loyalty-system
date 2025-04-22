@@ -23,14 +23,14 @@ const (
 )
 
 type OrderService struct {
-	BaseService
-	repository repository.Repository
-	config     *config.Config
-	logger     *slog.Logger
+	baseService BaseService
+	repository  repository.Repository
+	config      *config.Config
+	logger      *slog.Logger
 }
 
 func NewOrderService(r repository.Repository, c *config.Config, l *slog.Logger) *OrderService {
-	return &OrderService{repository: r, config: c, logger: l}
+	return &OrderService{repository: r, config: c, logger: l, baseService: BaseService{}}
 }
 
 func newOrder(userID string, number string) (*models.Order, error) {
@@ -70,7 +70,7 @@ func (s *OrderService) RegisterOrderNumber(ctx context.Context, userID string, n
 		return OrderStatusInternalError
 	}
 
-	defer s.EndTransaction(tx, &err)
+	defer s.baseService.EndTransaction(tx, &err)
 
 	valid, err := common.CheckOrderNumberFormat(number)
 	if err != nil {
