@@ -199,7 +199,7 @@ func (r *InMemoryRepository) UpdateOrderAccrualStatus(ctx context.Context, order
 
 }
 
-func (r *InMemoryRepository) UpdateUserAccruedTotel(ctx context.Context, userID string, amount float32) error {
+func (r *InMemoryRepository) UpdateUserAccruedTotal(ctx context.Context, userID string, amount float32) error {
 
 	user, exist := r.users[userID]
 
@@ -229,7 +229,7 @@ func (r *InMemoryRepository) GetWithdrawalsTotalAmountByUserID(ctx context.Conte
 
 }
 
-func (r *InMemoryRepository) UpdateUserWithdrawnTotel(ctx context.Context, userID string, amount float32) error {
+func (r *InMemoryRepository) UpdateUserWithdrawnTotal(ctx context.Context, userID string, amount float32) error {
 
 	user, exist := r.users[userID]
 

@@ -211,10 +211,10 @@ func RunRepositoryTests(t *testing.T, ctx context.Context, name string, repo Rep
 	})
 
 	t.Run(name+"CheckUserBalanceAfterRecalculation", func(t *testing.T) {
-		err := repo.UpdateUserAccruedTotel(ctx, user1.ID, 5)
+		err := repo.UpdateUserAccruedTotal(ctx, user1.ID, 5)
 		require.NoError(t, err)
 
-		err = repo.UpdateUserWithdrawnTotel(ctx, user1.ID, 3.5)
+		err = repo.UpdateUserWithdrawnTotal(ctx, user1.ID, 3.5)
 		require.NoError(t, err)
 
 		user, err := repo.FindUserByID(ctx, user1.ID)

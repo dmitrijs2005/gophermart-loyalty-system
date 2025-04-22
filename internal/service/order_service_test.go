@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -110,7 +109,6 @@ func TestOrderService_GetOrderList(t *testing.T) {
 			assert.Equal(t, len(got), len(tt.want))
 			if len(tt.want) > 0 {
 				if !reflect.DeepEqual(got, tt.want) {
-					fmt.Println(got, tt.want)
 					t.Errorf("OrderService.GetOrderList() = %v, want %v", got, tt.want)
 				}
 			}

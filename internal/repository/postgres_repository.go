@@ -177,7 +177,7 @@ func (r *PostgresRepository) UpdateOrderAccrualStatus(ctx context.Context, order
 
 }
 
-func (r *PostgresRepository) UpdateUserAccruedTotel(ctx context.Context, userID string, amount float32) error {
+func (r *PostgresRepository) UpdateUserAccruedTotal(ctx context.Context, userID string, amount float32) error {
 
 	s := "update users set accrued_total = $1 where id = $2"
 
@@ -190,7 +190,7 @@ func (r *PostgresRepository) UpdateUserAccruedTotel(ctx context.Context, userID 
 
 }
 
-func (r *PostgresRepository) UpdateUserWithdrawnTotel(ctx context.Context, userID string, amount float32) error {
+func (r *PostgresRepository) UpdateUserWithdrawnTotal(ctx context.Context, userID string, amount float32) error {
 
 	s := "update users set withdrawn_total = $1 where id = $2"
 

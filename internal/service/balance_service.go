@@ -114,7 +114,7 @@ func (s *BalanceService) recalculateAccruals(ctx context.Context, userID string)
 	}
 	s.logger.With("user_id", userID).InfoContext(ctx, "Updating accrued total", "amount", totalAccrued)
 
-	return s.repository.UpdateUserAccruedTotel(ctx, userID, totalAccrued)
+	return s.repository.UpdateUserAccruedTotal(ctx, userID, totalAccrued)
 
 }
 
@@ -162,7 +162,7 @@ func (s *BalanceService) recalculateWithdrawals(ctx context.Context, userID stri
 
 	s.logger.With("user_id", userID).InfoContext(ctx, "Updating withdrawn total", "amount", totalWithdrawn)
 
-	return s.repository.UpdateUserWithdrawnTotel(ctx, userID, totalWithdrawn)
+	return s.repository.UpdateUserWithdrawnTotal(ctx, userID, totalWithdrawn)
 
 }
 

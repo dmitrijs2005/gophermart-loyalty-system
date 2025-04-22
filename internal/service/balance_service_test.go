@@ -156,9 +156,6 @@ func TestBalanceService_GetWithdrawals(t *testing.T) {
 				return
 			}
 			require.True(t, cmp.Equal(got, tt.want, cmp.AllowUnexported(models.WithdrawalDTO{})))
-			// if !reflect.DeepEqual(got, tt.want) {
-			// 	t.Errorf("BalanceService.GetWithdrawals() = %v, want %v", got, tt.want)
-			// }
 		})
 	}
 }
