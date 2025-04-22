@@ -16,26 +16,22 @@ import (
 func CheckLuhn(s string) (bool, error) {
 	ctr := 0
 
-	lengthIsOdd := (len(s)-1)%2 != 0
-
-	for i := range len(s) {
+	double := false
+	for i := len(s) - 1; i >= 0; i-- {
 		n, err := strconv.Atoi(string(s[i]))
 		if err != nil {
 			return false, err
 		}
 
-		posIsOdd := i%2 != 0
-		mustDouble := !lengthIsOdd && posIsOdd || lengthIsOdd && !posIsOdd
-
-		if mustDouble {
-			if n < 5 {
-				ctr += n * 2
-			} else {
-				ctr += n*2 - 9
+		add := n
+		if double {
+			add = add * 2
+			if add >= 10 {
+				add -= 9
 			}
-		} else {
-			ctr += n
 		}
+		ctr += add
+		double = !double
 	}
 	return ctr%10 == 0, nil
 }
